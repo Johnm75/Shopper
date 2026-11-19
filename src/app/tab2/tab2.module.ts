@@ -1,78 +1,52 @@
 /**
- * @fileoverview Módulo de feature de la página «Galería» (`Tab2PageModule`).
+ * Módulo de la pestaña «Carrito de compras» (`Tab2Page`).
  *
- * @description
- * Declara `Tab2Page` importando explícitamente los Custom Elements standalone
- * de `@ionic/angular` (Ionic 9) para que la cabecera, cuadrícula, imágenes,
- * botón flotante (FAB), botones de estado y notificaciones toast se registren
- * e hidraten con sus estilos completos en Web y Android/iOS.
+ * Declara la vista del carrito y registra únicamente los custom elements de
+ * Ionic 9 empleados por la plantilla (listado de líneas con miniatura,
+ * stepper de cantidad, spinner de hidratación y pie adhesivo de checkout)
+ * para mantener el bundle perezoso lo más pequeño posible.
  *
- * @author @ionic-ui-animator (Fase 5B — Desarrollo UI)
- * @phase SDD Fase 5B — Desarrollo de componentes y navegación
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-12
+ * @phase SDD Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-019)
  */
 
-// Decorador NgModule del núcleo de Angular.
 import { NgModule } from '@angular/core';
-
-// Directivas comunes de Angular.
+// Directivas base y pipe `CurrencyPipe` (`| currency`) usado en precios y totales.
 import { CommonModule } from '@angular/common';
-
-// Soporte de formularios estándar de Angular.
-import { FormsModule } from '@angular/forms';
-
-// Componentes standalone de Ionic 9 utilizados en la galería fotográfica.
+// Custom elements de Ionic usados en la plantilla del carrito.
 import {
   IonButton,
-  IonChip,
-  IonCol,
   IonContent,
-  IonFab,
-  IonFabButton,
-  IonGrid,
-  IonHeader,
   IonIcon,
-  IonImg,
+  IonItem,
   IonLabel,
-  IonRow,
+  IonList,
   IonSpinner,
-  IonTitle,
-  IonToast,
-  IonToolbar,
+  IonThumbnail,
 } from '@ionic/angular';
 
-// Componente principal de la galería de fotografías.
+// Página del carrito de compras declarada por este módulo perezoso.
 import { Tab2Page } from './tab2.page';
-
-// Enrutamiento hijo de la pestaña 2.
+// Rutas hijas que vinculan `/tabs/tab2` con `Tab2Page`; además reexporta
+// `RouterModule`, lo que habilita la directiva `routerLink` del estado vacío
+// ("Explorar el catálogo" → `/tabs/tab1`).
 import { Tab2PageRoutingModule } from './tab2-routing.module';
 
-/**
- * Módulo de feature de la pestaña 2 (Galería).
- */
+// Ensambla el listado de líneas del carrito y la barra inferior de checkout.
 @NgModule({
-  // Importa utilidades Angular y todos los Custom Elements Ionic de la cuadrícula y cámara.
   imports: [
     CommonModule,
-    FormsModule,
     Tab2PageRoutingModule,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
     IonContent,
-    IonChip,
+    IonList,
+    IonItem,
+    IonThumbnail,
     IonLabel,
+    IonButton,
     IonIcon,
     IonSpinner,
-    IonButton,
-    IonGrid,
-    IonRow,
-    IonCol,
-    IonImg,
-    IonFab,
-    IonFabButton,
-    IonToast,
   ],
-  // Declara el componente `Tab2Page`.
   declarations: [Tab2Page],
 })
 export class Tab2PageModule {}

@@ -1,133 +1,122 @@
 /**
- * @fileoverview Fachada tipada sobre `@capacitor/preferences` para el dominio de autenticación.
+ * Fachada de almacenamiento local sobre `ShopperDatabaseService` (IndexedDB +
+ * respaldo `@capacitor/preferences`) para la sesión de "App Shoper".
  *
- * @description
- * Aísla las claves de almacenamiento del token JWT, su expiración y el perfil.
- * Permite sustituir el plugin por un doble de prueba sin tocar el resto de la app.
- * Nunca registra el token en consola (SEC-001).
+ * Expone una API canónica (`getSession`, `setSession`, `clearSession`) y
+ * mantiene métodos heredados para compatibilidad con componentes y specs de la
+ * galería de fotos.
  *
- * @author @capacitor-architect (Fase 3)
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-18
  * @phase SDD Fase 3 — Arquitectura Capacitor
  */
 
-// Importa el plugin de preferencias de Capacitor para almacenamiento persistente.
+import { Injectable, inject } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
 
-// Importa el modelo de perfil tipado.
-import type { UserProfile } from '../models/auth.model';
-
-// Importa la configuración de entorno para leer las claves de storage.
+import type { PersistedSessionRecord } from '../models/shoper.model';
+import type { AuthenticatedUserProfile } from '../models/auth.model';
 import { environment } from '../../environments/environment';
-
-/**
- * Servicio que encapsula todas las operaciones de almacenamiento de sesión.
- *
- * Se marca como injectable en `root` para que exista una única instancia en la app.
- */
-import { Injectable } from '@angular/core';
+import { ShopperDatabaseService } from './database.service';
 
 @Injectable({
-  // Proveedor singleton a nivel de aplicación.
   providedIn: 'root',
 })
 export class TokenStorageService {
-  // Clave donde se persiste el token JWT.
-  private readonly tokenKey = environment.jwt.tokenKey;
-
-  // Clave donde se persiste la expiración en milisegundos.
-  private readonly expiresAtKey = environment.jwt.expiresAtKey;
-
-  // Clave donde se persiste el perfil del usuario en JSON.
-  private readonly profileKey = environment.jwt.profileKey;
+  private readonly database = inject(ShopperDatabaseService);
 
   /**
-   * Lee el token JWT almacenado.
-   *
-   * @returns Token o `null` si no existe.
+   * Recupera la sesión persistida o `null` si no existe o está corrupta.
    */
-  async getToken(): Promise<string | null> {
-    // `Preferences.get` devuelve un objeto `{ value: string | null }`.
-    const { value } = await Preferences.get({ key: this.tokenKey });
-    return value;
+  async getSession(): Promise<PersistedSessionRecord | null> {
+    return this.database.getSession();
   }
 
   /**
-   * Persiste el token JWT.
-   *
-   * @param token Token en formato compacto.
+   * Serializa y guarda el registro de sesión completo en la base de datos.
    */
-  async setToken(token: string): Promise<void> {
-    // Escribe el valor como string en el almacenamiento nativo.
-    await Preferences.set({ key: this.tokenKey, value: token });
+  async setSession(record: PersistedSessionRecord): Promise<void> {
+    await this.database.saveSession(record);
   }
 
   /**
-   * Lee y convierte la expiración almacenada.
-   *
-   * @returns Epoch en milisegundos o `null`.
-   */
-  async getExpiresAt(): Promise<number | null> {
-    const { value } = await Preferences.get({ key: this.expiresAtKey });
-    // Si no hay valor, la sesión no existe.
-    if (!value) {
-      return null;
-    }
-    // Convierte el string guardado a número entero.
-    const parsed = parseInt(value, 10);
-    // Si el valor es inválido, devuelve null para forzar reautenticación.
-    return isNaN(parsed) ? null : parsed;
-  }
-
-  /**
-   * Persiste la expiración como string.
-   *
-   * @param ms Epoch en milisegundos.
-   */
-  async setExpiresAt(ms: number): Promise<void> {
-    await Preferences.set({ key: this.expiresAtKey, value: String(ms) });
-  }
-
-  /**
-   * Lee y parsea el perfil del usuario.
-   *
-   * Si el JSON está corrupto, elimina la clave para evitar comportamientos extraños
-   * y devuelve `null` (GUD-005).
-   *
-   * @returns Perfil o `null`.
-   */
-  async getProfile(): Promise<UserProfile | null> {
-    const { value } = await Preferences.get({ key: this.profileKey });
-    if (!value) {
-      return null;
-    }
-    try {
-      // Intenta deserializar el perfil almacenado.
-      return JSON.parse(value) as UserProfile;
-    } catch {
-      // Si el JSON es inválido, limpia la clave corrupta.
-      await Preferences.remove({ key: this.profileKey });
-      return null;
-    }
-  }
-
-  /**
-   * Persiste el perfil del usuario como JSON.
-   *
-   * @param profile Perfil a serializar.
-   */
-  async setProfile(profile: UserProfile): Promise<void> {
-    await Preferences.set({ key: this.profileKey, value: JSON.stringify(profile) });
-  }
-
-  /**
-   * Elimina las tres claves de sesión sin borrar la galería local.
-   *
-   * Se usa en logout para preservar las fotografías del usuario (AC-005).
+   * Elimina el registro de sesión de la base de datos local.
    */
   async clearSession(): Promise<void> {
-    // Elimina cada clave de forma independiente; no se borra el índice de fotos.
-    await Preferences.remove({ key: this.tokenKey });
-    await Preferences.remove({ key: this.expiresAtKey });
-    await Preferences.remove({ key: this.profileKey });
+    await this.database.clearSession();
+  }
+
+  // --- Métodos heredados de compatibilidad con la galería de fotos ---
+
+  async getAccessToken(): Promise<string | null> {
+    const session = await this.getSession();
+    return session?.accessToken ?? null;
+  }
+
+  async saveAccessToken(accessToken: string): Promise<void> {
+    const session = (await this.getSession()) ?? this.createEmptySession(accessToken);
+    session.accessToken = accessToken;
+    await this.setSession(session);
+  }
+
+  async getExpirationTimestamp(): Promise<number | null> {
+    const session = await this.getSession();
+    if (!session?.expiresAt) {
+      return null;
+    }
+    const parsed = Date.parse(session.expiresAt);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+
+  async saveExpirationTimestamp(expirationTimestampMs: number): Promise<void> {
+    const session = (await this.getSession()) ?? this.createEmptySession('legacy-token');
+    session.expiresAt = new Date(expirationTimestampMs).toISOString();
+    await this.setSession(session);
+  }
+
+  async getAuthenticatedUserProfile(): Promise<AuthenticatedUserProfile | null> {
+    const session = await this.getSession();
+    if (!session) {
+      return null;
+    }
+    return {
+      id: session.username,
+      fullName: `${session.firstName} ${session.lastName}`.trim(),
+      email: `${session.username}@example.com`,
+      role: 'student',
+    };
+  }
+
+  async saveAuthenticatedUserProfile(userProfile: AuthenticatedUserProfile): Promise<void> {
+    const session = (await this.getSession()) ?? this.createEmptySession('legacy-token');
+    const nameParts = userProfile.fullName.split(' ');
+    session.firstName = nameParts[0] ?? 'Usuario';
+    session.lastName = nameParts.slice(1).join(' ').trim() || 'Demo';
+    session.username = userProfile.id;
+    await this.setSession(session);
+  }
+
+  async clearStoredSession(): Promise<void> {
+    await Promise.all([
+      this.clearSession(),
+      Preferences.remove({ key: environment.jwtSession.accessTokenKey }),
+      Preferences.remove({ key: environment.jwtSession.expirationKey }),
+      Preferences.remove({ key: environment.jwtSession.userProfileKey }),
+    ]);
+  }
+
+  private createEmptySession(accessToken: string): PersistedSessionRecord {
+    return {
+      accessToken,
+      refreshToken: '',
+      username: 'legacy',
+      firstName: 'Legacy',
+      lastName: 'User',
+      role: 'customer',
+      source: 'offline-fallback',
+      schemaVersion: 1,
+    };
   }
 }
+
+export { TokenStorageService as JwtSessionStorageService };

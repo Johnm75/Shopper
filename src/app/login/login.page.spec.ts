@@ -1,117 +1,136 @@
 /**
- * @fileoverview Pruebas unitarias y de accesibilidad de `LoginPage`.
+ * Pruebas unitarias de `LoginPage` (Fase 6 SDD — TASK-021).
  *
- * @description
- * Comprueba la validación reactiva de correo/contraseña, la traducción de
- * códigos de error en un banner `role="alert"` y la sanitización del destino
- * `returnUrl` tras un inicio de sesión exitoso.
+ * Valida el renderizado sin errores, la conmutación de rol en el formulario,
+ * la presencia de atributos de accesibilidad y la delegación al servicio de
+ * autenticación con manejo de retorno seguro.
  *
- * @author @ionic-ui-animator (Fase 5B)
- * @author @quality-security-auditor (Fase 6 — pruebas de validación, error y seguridad)
- * @phase SDD Fase 6 — Calidad, Accesibilidad y Seguridad
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-12
+ * @phase SDD Fase 6 — Calidad, Pruebas y Auditoría
  */
 
-// Utilidades de pruebas de componentes de Angular.
+// Utilidades de Angular Testing para crear y controlar el componente.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+// Esquema que permite a Angular ignorar elementos personalizados de Ionic en pruebas.
+import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+// Señal usada para simular el rol activo expuesto por el servicio de sesión.
+import { signal } from '@angular/core';
+// Proveedor de router y utilidades para simular parámetros de consulta.
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
+// Controlador de toasts de Ionic inyectado por la página.
+import { ToastController } from '@ionic/angular';
 
-// Enrutador para verificar redirecciones post-login.
-import { ActivatedRoute, Router, RouterModule, convertToParamMap } from '@angular/router';
-
-// Módulo de feature de la pantalla de login.
+// Módulo y componente bajo prueba.
 import { LoginPageModule } from './login.module';
-
-// Componente bajo prueba.
 import { LoginPage } from './login.page';
+// Servicio de autenticación que la página delega para iniciar sesión.
+import { JwtAuthenticationService } from '../services/auth-jwt.service';
+// Tipo de rol para tipar el doble de prueba.
+import type { UserRole } from '../models/shoper.model';
 
-// Servicio de autenticación simulado.
-import { AuthJwtService } from '../services/auth-jwt.service';
-
+// Suite de pruebas del componente de inicio de sesión.
 describe('LoginPage', () => {
-  // Instancia del componente bajo prueba.
+  // Referencia al componente instanciado.
   let component: LoginPage;
-
-  // Fixture de prueba con acceso al DOM.
+  // Fixture que permite acceder al DOM renderizado.
   let fixture: ComponentFixture<LoginPage>;
-
-  // Doble del servicio de autenticación.
-  let authStub: { login: ReturnType<typeof vi.fn> };
-
-  // Espía sobre `Router.navigateByUrl`.
+  // Espía/método simulado de login del servicio.
+  let loginSpy: ReturnType<typeof vi.fn>;
+  // Señal simulada del rol activo para observar conmutaciones.
+  let activeRoleSignal: ReturnType<typeof signal<UserRole>>;
+  // Instancia del router para espiar la navegación.
   let router: Router;
 
+  // Configura el módulo de pruebas con dobles controlados antes de cada caso.
   beforeEach(async () => {
-    authStub = {
-      login: vi.fn(),
-    };
+    // Restablece el TestBed para aislar cada escenario de pruebas.
+    TestBed.resetTestingModule();
+    // Inicializa el rol simulado en cliente por defecto.
+    activeRoleSignal = signal<UserRole>('customer');
+    // Crea un espía de login que resuelve una sesión remota exitosa.
+    loginSpy = vi.fn().mockResolvedValue({
+      accessToken: 'jwt',
+      refreshToken: 'r',
+      username: 'emilys',
+      firstName: 'Emily',
+      lastName: 'Stone',
+      role: 'customer',
+      source: 'remote-api',
+      schemaVersion: 1,
+    });
 
+    // Compila el módulo de la página con proveedores y esquemas simulados.
     await TestBed.configureTestingModule({
-      imports: [LoginPageModule, RouterModule.forRoot([])],
+      imports: [LoginPageModule],
       providers: [
-        { provide: AuthJwtService, useValue: authStub },
+        provideRouter([]),
+        { provide: JwtAuthenticationService, useValue: { login: loginSpy, activeRole: activeRoleSignal } },
+        { provide: ToastController, useValue: { create: vi.fn().mockResolvedValue({ present: vi.fn() }) } },
         {
           provide: ActivatedRoute,
-          useValue: {
-            snapshot: {
-              queryParamMap: convertToParamMap({ returnUrl: '//atacante.example/phish' }),
-            },
-          },
+          useValue: { snapshot: { queryParamMap: convertToParamMap({ returnUrl: '//malicioso.example' }) } },
         },
       ],
+      schemas: [CUSTOM_ELEMENTS_SCHEMA],
     }).compileComponents();
 
+    // Crea la instancia del componente y dispara la detección de cambios inicial.
     router = TestBed.inject(Router);
     fixture = TestBed.createComponent(LoginPage);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
+  // Restaura los espías y el entorno después de cada prueba.
   afterEach(() => {
+    // Restablece el módulo de pruebas para evitar fugas de estado.
+    TestBed.resetTestingModule();
+    // Revierte mocks para evitar interferencias entre casos.
     vi.restoreAllMocks();
   });
 
-  it('no debe invocar AuthJwtService.login si el formulario es inválido y debe exponer mensajes en español', async () => {
-    await component.onSubmit();
-
-    expect(authStub.login).not.toHaveBeenCalled();
-    expect(component.fieldError('email')).toContain('obligatorio');
-    expect(component.fieldError('password')).toContain('obligatoria');
+  // Debe renderizar el componente sin errores.
+  it('debe renderizar el componente LoginPage sin errores', () => {
+    // Verifica que la instancia del componente sea válida.
+    expect(component).toBeTruthy();
   });
 
-  it('debe navegar a /tabs/tab2 descartando un returnUrl malicioso tras login exitoso', async () => {
-    const navSpy = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
-    authStub.login.mockResolvedValue({
-      token: 'jwt',
-      expiresAt: Date.now() + 60_000,
-      user: { id: 'u-1', name: 'Demo', email: 'estudiante@example.com', role: 'student' },
-    });
-
-    component.form.setValue({
-      email: 'estudiante@example.com',
-      password: 'Demo1234!',
-    });
-    await component.onSubmit();
-
-    expect(navSpy).toHaveBeenCalledWith('/tabs/tab2', { replaceUrl: true });
+  // Debe exponer atributos de accesibilidad clave en la plantilla.
+  it('debe incluir atributos de accesibilidad aria-label y controles accesibles', () => {
+    // Obtiene el elemento raíz renderizado.
+    const host = fixture.nativeElement as HTMLElement;
+    // Comprueba que el selector de rol tenga un aria-label descriptivo.
+    const roleSegment = host.querySelector('ion-segment[aria-label]');
+    expect(roleSegment).toBeTruthy();
   });
 
-  it('debe renderizar un banner accesible role="alert" cuando el login rechaza con invalid_credentials', async () => {
-    authStub.login.mockRejectedValue('invalid_credentials');
+  // Debe conmutar el rol del formulario mediante el autocompletado de credenciales.
+  it('debe conmutar reactivamente el rol del formulario al usar el autocompletado rápido', () => {
+    // Aplica el autocompletado para el rol vendedor.
+    component.fillDemoCredentials('seller');
+    // Verifica que el control reactivo refleje el rol vendedor.
+    expect(component.credentialsForm.controls.role.value).toBe('seller');
 
-    component.form.setValue({
-      email: 'estudiante@example.com',
-      password: 'Incorrecta1!',
-    });
-    await component.onSubmit();
-    fixture.detectChanges();
-
-    const alertEl = (fixture.nativeElement as HTMLElement).querySelector('.login-error[role="alert"]');
-    expect(alertEl?.textContent).toContain('Correo o contraseña incorrectos');
+    // Cambia nuevamente al rol cliente.
+    component.fillDemoCredentials('customer');
+    // Confirma que el formulario vuelve al rol cliente.
+    expect(component.credentialsForm.controls.role.value).toBe('customer');
   });
 
-  it('debe autocompletar las credenciales de demostración al invocar fillDemoCredentials()', () => {
-    component.fillDemoCredentials();
+  // Debe delegar el login y navegar a una ruta segura descartando returnUrl malicioso.
+  it('debe autenticar y redirigir a /tabs/tab1 descartando un returnUrl malicioso', async () => {
+    // Espía la navegación para verificar la ruta sanitizada.
+    const navigateSpy = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
 
-    expect(component.form.getRawValue()).toEqual(component.demoCredentials);
-    expect(component.form.valid).toBe(true);
+    // Completa el formulario con credenciales válidas.
+    component.credentialsForm.setValue({ username: 'emilys', password: 'emilyspass', role: 'customer' });
+    // Envía el formulario.
+    await component.submitLoginForm();
+
+    // Comprueba que se haya invocado el servicio de autenticación.
+    expect(loginSpy).toHaveBeenCalledTimes(1);
+    // Verifica que la navegación caiga en la ruta segura por defecto.
+    expect(navigateSpy).toHaveBeenCalledWith('/tabs/tab1', { replaceUrl: true });
   });
 });

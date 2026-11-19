@@ -1,47 +1,42 @@
 /**
- * @fileoverview Módulo de feature de la página de inicio de sesión (`LoginPageModule`).
+ * Módulo de la pantalla de inicio de sesión de "App Shoper".
  *
- * @description
- * Registra `LoginPage` importando directamente los Custom Elements standalone de
- * `@ionic/angular` (Ionic 9). Esto garantiza que `<ion-input>`, `<ion-button>`,
- * `<ion-input-password-toggle>`, `<ion-icon>` e `<ion-spinner>` ejecuten
- * `defineCustomElement` en el navegador y el WebView de Android/iOS, evitando
- * controles sin hidratar cuando se usa `provideIonicAngular()`.
+ * Declara `LoginPage` y registra únicamente los custom elements de Ionic 9
+ * empleados por la vista (formulario, segmento de rol y feedback) para
+ * mantener el bundle perezoso lo más pequeño posible.
  *
- * @author @ionic-ui-animator (Fase 5B — Desarrollo UI)
- * @phase SDD Fase 5B — Desarrollo de componentes y navegación
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-12
+ * @phase SDD Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-016)
  */
 
-// Decorador NgModule del núcleo de Angular.
 import { NgModule } from '@angular/core';
-
-// Directivas comunes de Angular para plantillas.
+// Directivas estructurales base (ngIf/ngFor no se usan directamente: la
+// plantilla emplea la sintaxis moderna @if/@for del compilador de Angular).
 import { CommonModule } from '@angular/common';
-
-// Soporte de formularios reactivos (`formGroup`, `formControlName`).
+// Infraestructura de formularios reactivos ([formGroup], formControlName).
 import { ReactiveFormsModule } from '@angular/forms';
-
-// Componentes Ionic 9 standalone que registran sus propios Custom Elements en el DOM.
+// Custom elements de Ionic usados en la plantilla de login.
 import {
   IonButton,
   IonContent,
   IonIcon,
   IonInput,
   IonInputPasswordToggle,
+  IonLabel,
+  IonSegment,
+  IonSegmentButton,
   IonSpinner,
 } from '@ionic/angular';
 
-// Componente de página de inicio de sesión declarado en este módulo.
+// Página de autenticación declarada por este módulo perezoso.
 import { LoginPage } from './login.page';
-
-// Enrutamiento hijo perezoso de la pantalla `/login`.
+// Rutas hijas que vinculan `/login` con `LoginPage`.
 import { LoginPageRoutingModule } from './login-routing.module';
 
-/**
- * Módulo de la pantalla de autenticación.
- */
+// Ensambla el módulo: CommonModule + ReactiveFormsModule + controles Ionic
+// (contenido, campos, segmento de rol, botones, iconos y spinner de envío).
 @NgModule({
-  // Importa formularios reactivos, rutas hijas y cada control Ionic utilizado en la vista.
   imports: [
     CommonModule,
     ReactiveFormsModule,
@@ -49,11 +44,13 @@ import { LoginPageRoutingModule } from './login-routing.module';
     IonContent,
     IonInput,
     IonInputPasswordToggle,
+    IonSegment,
+    IonSegmentButton,
+    IonLabel,
     IonButton,
     IonIcon,
     IonSpinner,
   ],
-  // Declara el componente `LoginPage`.
   declarations: [LoginPage],
 })
 export class LoginPageModule {}

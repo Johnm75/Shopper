@@ -1,67 +1,311 @@
 <!--
-  @fileoverview Plantilla de la pestaña «Inicio» (`Tab1Page`).
-
-  @description
-  Sustituye el marcador plano inicial por un panel de bienvenida con tarjeta
-  destacada en degradado, resumen de capacidades nativas y botones claros de
-  navegación hacia «Galería» y «Cuenta», respetando accesibilidad WCAG 2.2 AA.
-
-  @author @ionic-ui-animator (Fase 5B)
-  @phase SDD Fase 5B — Desarrollo de componentes y navegación
+  ===========================================================================
+  APP SHOPER — Vista Catálogo (Cliente) / Inventario (Vendedor) (`Tab1Page`)
+  ===========================================================================
+  Propósito : Renderizar la cuadrícula de productos con la estructura BEM
+              `.shoper-product-card` definida en `global.scss` (CON-002),
+              condicionando las acciones al rol activo: "Agregar al carrito"
+              para el Cliente; editar/eliminar, formulario de alta-edición y
+              restauración del catálogo base para el Vendedor.
+  Fase SDD  : Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-018).
+  Autor     : John Fredy Marciales Morales
+  Fecha     : 2026-11-12
+  ===========================================================================
 -->
+<!-- `fullscreen` pinta el fondo bajo la cabecera persistente del contenedor. -->
+<ion-content [fullscreen]="true">
+  <!-- Acolchado estándar de página con inset seguro inferior (global.scss). -->
+  <div class="shoper-page-padding catalog-page">
 
-<!-- Barra superior fija con título enfocable programáticamente. -->
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title id="tab1-title" tabindex="-1">Inicio</ion-title>
-  </ion-toolbar>
-</ion-header>
+    <!-- Encabezado de sección: receptor del foco accesible al entrar (a11y). -->
+    <h1 id="tab1-title" tabindex="-1" class="shoper-section-title catalog-title">
+      @if (activeRole() === 'customer') {
+        Catálogo de productos
+      } @else {
+        Inventario del vendedor
+      }
+    </h1>
 
-<!-- Contenido desplazable sobre el lienzo de contraste de la aplicación. -->
-<ion-content [fullscreen]="true" class="home-content">
+    <!-- Región de estado accesible (ACC-001): anuncia agregados al carrito,
+         altas/bajas de inventario y errores de stock sin robar el foco. -->
+    <div
+      class="catalog-live-region shoper-live-banner"
+      role="status"
+      aria-live="polite"
+      [class.catalog-live-region--error]="actionMessageType() === 'error'">
+      @if (actionMessage(); as message) {
+        <ion-icon
+          [name]="actionMessageType() === 'error' ? 'alert-circle-outline' : 'checkmark-circle-outline'"
+          aria-hidden="true">
+        </ion-icon>
+        <span>{{ message }}</span>
+      }
+    </div>
 
-  <!-- Contenedor centrado de tarjetas del panel de inicio. -->
-  <div class="home-container">
+    <!-- Indicador de progreso de la hidratación del catálogo (WCAG 2.2.1:
+         el usuario percibe que la app está trabajando tras cada entrada). -->
+    @if (isLoadingCatalog()) {
+      <div class="catalog-loading" role="progressbar" aria-label="Cargando catálogo de productos">
+        <ion-spinner name="crescent"></ion-spinner>
+      </div>
+    }
 
-    <!-- Tarjeta hero con degradado de marca y resumen del proyecto híbrido. -->
-    <section class="hero-banner">
-      <ion-chip class="hero-badge">
-        <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
-        <ion-label>Sesión JWT Protegida</ion-label>
-      </ion-chip>
-      <h2 class="hero-heading">Tu Galería Móvil Privada</h2>
-      <p class="hero-copy">
-        Captura fotografías con la cámara del dispositivo y consérvalas de forma
-        segura en el almacenamiento local incluso sin conexión a internet.
-      </p>
-    </section>
+    <!-- ================================================================
+         PANEL EXCLUSIVO DEL ROL VENDEDOR: acciones globales de inventario
+         ================================================================ -->
+    @if (activeRole() === 'seller') {
+      <!-- Fila de acciones: alta de producto y restauración del catálogo base. -->
+      <div class="seller-toolbar">
+        <!-- Alterna el formulario entre modo alta (se abre con campos vacíos). -->
+        <ion-button
+          fill="solid"
+          color="primary"
+          (click)="openCreateProductForm()"
+          aria-label="Crear un producto nuevo en el inventario">
+          <ion-icon name="add-outline" slot="start" aria-hidden="true"></ion-icon>
+          Nuevo producto
+        </ion-button>
+        <!-- Restaura el catálogo publicado por la API (o la semilla offline). -->
+        <ion-button
+          fill="outline"
+          color="medium"
+          (click)="resetCatalogToBase()"
+          [disabled]="isLoadingCatalog()"
+          aria-label="Restaurar el catálogo base de la API">
+          <ion-icon name="refresh-outline" slot="start" aria-hidden="true"></ion-icon>
+          Restaurar catálogo base API
+        </ion-button>
+      </div>
 
-    <!-- Tarjeta elevada con botones de acción principal e secundaria claramente visibles. -->
-    <section class="actions-card app-surface-card" aria-label="Acciones rápidas">
-      <h3 class="actions-title">¿Qué deseas hacer ahora?</h3>
+      <!-- Formulario reactivo de alta/edición (REQ-005): se despliega solo
+           cuando el vendedor pulsa "Nuevo producto" o "Editar". `aria-label`
+           diferencia el modo en curso para los lectores de pantalla. -->
+      @if (isProductFormOpen()) {
+        <form
+          class="product-form app-surface-card"
+          [formGroup]="productForm"
+          (ngSubmit)="submitProductForm()"
+          novalidate
+          [attr.aria-label]="editingProductId() !== null
+            ? 'Editar producto del inventario'
+            : 'Crear producto nuevo en el inventario'">
 
-      <!-- Acción primaria sólida: ir directamente a la cuadrícula y cámara. -->
-      <ion-button
-        expand="block"
-        fill="solid"
-        color="primary"
-        [strong]="true"
-        routerLink="/tabs/tab2">
-        <ion-icon name="images-outline" slot="start" aria-hidden="true"></ion-icon>
-        Abrir mi galería y cámara
-      </ion-button>
+          <!-- Cabecera del formulario según el modo activo. -->
+          <div class="product-form__header">
+            <h2 class="product-form__title">
+              {{ editingProductId() !== null ? 'Editar producto' : 'Nuevo producto' }}
+            </h2>
+            <p class="shoper-muted-text product-form__subtitle">
+              Completa los datos para guardarlo en el inventario local.
+            </p>
+          </div>
 
-      <!-- Acción secundaria delineada: revisar estado del token y perfil. -->
-      <ion-button
-        expand="block"
-        fill="outline"
-        color="primary"
-        routerLink="/tabs/tab3">
-        <ion-icon name="person-circle-outline" slot="start" aria-hidden="true"></ion-icon>
-        Ver estado de mi cuenta
-      </ion-button>
-    </section>
+          <!-- Nombre del producto: control tipado no nulo con validación. -->
+          <label class="shoper-field">
+            <span class="shoper-field__label">Nombre del producto</span>
+            <ion-input
+              class="shoper-input"
+              formControlName="title"
+              aria-label="Nombre del producto"
+              fill="outline"
+              placeholder="p. ej. Auriculares Bluetooth"
+              [errorText]="getProductFieldError('title')"
+              enterkeyhint="next">
+            </ion-input>
+          </label>
 
+          <!-- Fila numérica compacta: Precio unitario + Stock disponible. -->
+          <div class="product-form__row">
+            <label class="shoper-field">
+              <span class="shoper-field__label">Precio (USD)</span>
+              <ion-input
+                class="shoper-input"
+                formControlName="price"
+                aria-label="Precio (USD)"
+                fill="outline"
+                type="number"
+                inputmode="decimal"
+                placeholder="0.00"
+                [errorText]="getProductFieldError('price')"
+                enterkeyhint="next">
+              </ion-input>
+            </label>
+
+            <label class="shoper-field">
+              <span class="shoper-field__label">Stock (unidades)</span>
+              <ion-input
+                class="shoper-input"
+                formControlName="stock"
+                aria-label="Stock (unidades)"
+                fill="outline"
+                type="number"
+                inputmode="numeric"
+                placeholder="0"
+                [errorText]="getProductFieldError('stock')"
+                enterkeyhint="next">
+              </ion-input>
+            </label>
+          </div>
+
+          <!-- Categoría comercial: texto libre normalizado por el vendedor. -->
+          <label class="shoper-field">
+            <span class="shoper-field__label">Categoría</span>
+            <ion-input
+              class="shoper-input"
+              formControlName="category"
+              aria-label="Categoría"
+              fill="outline"
+              placeholder="p. ej. mobile-accessories"
+              autocapitalize="none"
+              [errorText]="getProductFieldError('category')"
+              enterkeyhint="next">
+            </ion-input>
+          </label>
+
+          <!-- URL de la imagen: opcional; sin valor se usa la miniatura base. -->
+          <label class="shoper-field">
+            <span class="shoper-field__label">URL de la imagen (opcional)</span>
+            <ion-input
+              class="shoper-input"
+              formControlName="thumbnail"
+              aria-label="URL de la imagen (opcional)"
+              fill="outline"
+              placeholder="https://…"
+              type="url"
+              inputmode="url"
+              autocapitalize="none"
+              enterkeyhint="done">
+            </ion-input>
+          </label>
+
+          <!-- Acciones del formulario: cancelar (outline) y guardar (solid). -->
+          <div class="product-form__actions">
+            <ion-button
+              type="button"
+              fill="outline"
+              color="medium"
+              (click)="closeProductForm()"
+              aria-label="Cancelar y cerrar el formulario">
+              <ion-icon name="close-outline" slot="start" aria-hidden="true"></ion-icon>
+              Cancelar
+            </ion-button>
+            <ion-button
+              type="submit"
+              fill="solid"
+              color="primary"
+              aria-label="Guardar los cambios del producto">
+              <ion-icon name="checkmark-circle-outline" slot="start" aria-hidden="true"></ion-icon>
+              Guardar
+            </ion-button>
+          </div>
+        </form>
+      }
+    }
+
+    <!-- ================================================================
+         CUADRÍCULA DE PRODUCTOS (compartida por ambos roles)
+         `ion-grid` de 12 columnas: 1 tarjeta en móvil, 2 en tablet (md),
+         3 en escritorio (lg) aprovechando los breakpoints de Ionic.
+         ================================================================ -->
+    @if (!isLoadingCatalog() && products().length > 0) {
+      <ion-grid class="catalog-grid">
+        <ion-row>
+          @for (product of products(); track product.id; let productIndex = $index) {
+            <!-- Columna de la cuadrícula con animación de entrada escalonada:
+                 `shoper-fade-in-up` aplica fade-in + slide-up suave (global.scss §14.2)
+                 y la variable `--shoper-stagger-delay` desplaza cada tarjeta 40 ms
+                 según su índice para crear una aparición progresiva y legible. -->
+            <ion-col
+              size="12"
+              sizeMd="6"
+              sizeLg="4"
+              class="shoper-fade-in-up"
+              [style.--shoper-stagger-delay.ms]="productIndex * 40">
+              <!-- Tarjeta de producto con la estructura BEM de global.scss; la
+                   animación se hereda de la columna contenedora escalonada. -->
+              <article class="shoper-product-card">
+                <!-- Zona de imagen 1:1; `loading="lazy"` difiere la descarga
+                     hasta que la tarjeta entra en el viewport (ahorra datos). -->
+                <div class="shoper-product-card__media">
+                  <img
+                    [src]="product.thumbnail"
+                    [alt]="'Imagen del producto ' + product.title"
+                    loading="lazy"
+                    decoding="async" />
+                </div>
+
+                <!-- Cuerpo textual: título, metadatos, precio y acciones. -->
+                <div class="shoper-product-card__body">
+                  <h2 class="shoper-product-card__title">{{ product.title }}</h2>
+
+                  <!-- Categoría + stock disponible en una sola fila limpia. -->
+                  <p class="shoper-product-card__meta">
+                    <span>{{ product.category }}</span>
+                    <!-- Refuerzo semántico del stock con chip de color. -->
+                    @if (product.stock > 0) {
+                      <span class="badge-paid">Stock: {{ product.stock }}</span>
+                    } @else {
+                      <span class="badge-preparing">Sin stock</span>
+                    }
+                  </p>
+
+                  <!-- Precio unitario destacado con el formato monetario. -->
+                  <span class="shoper-price">
+                    {{ product.price | currency: 'USD' : 'symbol' : '1.2-2' }}
+                  </span>
+
+                  <!-- Acciones condicionadas por rol (WCAG: aria-label descriptivo). -->
+                  <div class="shoper-product-card__actions">
+                    @if (activeRole() === 'customer') {
+                      <!-- Cliente: agrega una unidad validando stock en el servicio. -->
+                      <ion-button
+                        size="small"
+                        fill="solid"
+                        color="primary"
+                        [disabled]="product.stock < 1"
+                        (click)="addToCart(product)"
+                        [attr.aria-label]="'Agregar al carrito: ' + product.title">
+                        <ion-icon name="cart-outline" slot="start" aria-hidden="true"></ion-icon>
+                        Agregar al carrito
+                      </ion-button>
+                    } @else {
+                      <!-- Vendedor: precarga el formulario con los datos actuales. -->
+                      <ion-button
+                        size="small"
+                        fill="outline"
+                        color="primary"
+                        (click)="openEditProductForm(product)"
+                        [attr.aria-label]="'Editar producto: ' + product.title">
+                        <ion-icon name="create-outline" slot="start" aria-hidden="true"></ion-icon>
+                        Editar
+                      </ion-button>
+                      <!-- Vendedor: elimina el producto del inventario local. -->
+                      <ion-button
+                        size="small"
+                        fill="clear"
+                        color="danger"
+                        (click)="deleteProduct(product)"
+                        [attr.aria-label]="'Eliminar producto: ' + product.title">
+                        <ion-icon name="trash-outline" slot="start" aria-hidden="true"></ion-icon>
+                        Eliminar
+                      </ion-button>
+                    }
+                  </div>
+                </div>
+              </article>
+            </ion-col>
+          }
+        </ion-row>
+      </ion-grid>
+    } @else if (!isLoadingCatalog()) {
+      <!-- Estado vacío: catálogo sin productos tras la carga (p. ej. el
+           vendedor eliminó todos); ofrece la restauración inmediata. -->
+      <div class="catalog-empty app-surface-card" role="status">
+        <p class="shoper-muted-text">
+          El catálogo está vacío. Agrega productos con el formulario del vendedor
+          o restaura el catálogo base de la API.
+        </p>
+      </div>
+    }
   </div>
-
 </ion-content>

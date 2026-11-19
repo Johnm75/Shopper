@@ -1,0 +1,130 @@
+.user-page,
+.user-token-viewer {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-page {
+  gap: var(--shoper-space-md);
+}
+
+.user-subtitle {
+  margin: var(--shoper-space-sm) 0 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.user-live-region {
+  display: flex;
+  align-items: center;
+  gap: var(--shoper-space-sm);
+  font-weight: 600;
+  color: var(--shoper-status-paid-fg);
+}
+
+.user-profile-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--shoper-space-lg) var(--shoper-space-md);
+  gap: 8px;
+
+  &__name {
+    margin: 4px 0 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+  }
+
+  &__handle,
+  &__desc {
+    margin: 0;
+  }
+}
+
+.user-avatar,
+.user-role-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--ion-color-primary-rgb), 0.14);
+  color: var(--ion-color-primary);
+
+  &--seller {
+    background: rgba(var(--ion-color-secondary-rgb), 0.16);
+    color: var(--shoper-seller-pill-fg);
+  }
+}
+
+.user-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  font-size: 28px;
+}
+
+.user-role-pill {
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: var(--shoper-radius-pill);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.user-summary-grid,
+.user-token-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--shoper-space-sm);
+  width: 100%;
+}
+
+.user-summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  border-radius: var(--shoper-radius-control);
+  background: var(--app-surface-muted);
+  border: 1px solid var(--app-surface-border);
+  text-decoration: none;
+  color: inherit;
+
+  ion-icon {
+    font-size: 20px;
+    color: var(--ion-color-primary);
+  }
+
+  &__value {
+    font-size: 1.15rem;
+    font-weight: 800;
+  }
+
+  &__label {
+    font-size: 0.8rem;
+    color: var(--ion-color-medium);
+  }
+}
+
+.user-token-viewer {
+  padding: 14px;
+  gap: 6px;
+
+  &__label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--ion-color-medium);
+  }
+
+  &__code {
+    font-family: monospace;
+    font-size: 0.82rem;
+    word-break: break-all;
+    user-select: text;
+  }
+}
+
+.user-empty {
+  padding: var(--shoper-space-lg);
+  text-align: center;
+}

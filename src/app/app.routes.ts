@@ -1,57 +1,55 @@
 /**
- * @fileoverview Rutas principales de la aplicación Angular standalone.
+ * Definición raíz de rutas de "App Shoper" con carga perezosa y guardas JWT.
  *
- * @description
- * Define las rutas de primer nivel con sus guards funcionales (Fase 5B):
- * - `/login`: pantalla de acceso, protegida por `guestGuard` (si ya hay
- *   sesión vigente, redirige a la galería en lugar de mostrar el formulario).
- * - `/tabs`: contenedor de pestañas, protegido por `authGuard` (sin token
- *   JWT válido redirige a `/login` conservando el destino en `returnUrl`).
- * - La ruta raíz redirige a la primera pestaña, que al estar bajo `/tabs`
- *   dispara la evaluación del guard de autenticación.
+ * La ruta raíz redirige a `/login` (punto de entrada obligatorio de la app)
+ * y `/tabs` aloja el contenedor de las tres pestañas del dominio comercial:
+ * Catálogo/Inventario (tab1), Carrito (tab2) y Mis Compras/Pedidos (tab3).
  *
- * Las features se cargan de forma perezosa mediante `loadChildren`, patrón
- * NgModule de la plantilla tabs.
- *
- * @author @capacitor-architect (Fase 3 / Fase 5A)
- * @author @ionic-ui-animator (Fase 5B — guards y ruta /login)
- * @phase SDD Fase 5B — Desarrollo de componentes y navegación
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-12
+ * @phase SDD Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-016)
  */
 
-// Tipo de rutas de Angular.
 import type { Routes } from '@angular/router';
 
-// Guard funcional que exige sesión JWT vigente para entrar en `/tabs`.
-import { authGuard } from './guards/auth.guard';
-
-// Guard funcional que reserva `/login` a usuarios sin sesión activa.
-import { guestGuard } from './guards/guest.guard';
+// Guarda que exige sesión JWT vigente para entrar al área privada `/tabs`.
+import { authenticatedRouteGuard } from './guards/auth.guard';
+// Guarda que impide reabrir `/login` cuando ya existe una sesión activa.
+import { unauthenticatedOnlyGuard } from './guards/guest.guard';
 
 /**
- * Rutas raíz de la aplicación.
+ * Mapa principal de rutas de la aplicación.
  *
- * `TabsPageModule` y `LoginPageModule` siguen el patrón NgModule del starter;
- * Angular permite cargar módulos de rutas hijas (`loadChildren`) desde una
- * app standalone.
+ * Orden de evaluación de Angular: la primera coincidencia gana; el comodín
+ * final captura cualquier URL desconocida y la devuelve al inicio de sesión.
  */
-export const routes: Routes = [
+export const appRoutes: Routes = [
   {
-    // Ruta raíz: redirige a la galería principal; al estar bajo `/tabs`,
-    // dispara `authGuard` (exige sesión vigente o desvía a `/login`).
+    // Ruta raíz: `App Shoper` arranca SIEMPRE en el inicio de sesión; si la
+    // sesión persiste en `@capacitor/preferences`, el guarda de invitados
+    // (`unauthenticatedOnlyGuard`) redirige automáticamente a `/tabs`.
     path: '',
-    redirectTo: 'tabs/tab2',
+    redirectTo: 'login',
     pathMatch: 'full',
   },
   {
-    // Pantalla de inicio de sesión: solo visible para invitados.
+    // Vista pública de autenticación JWT con selector de rol inicial
+    // (Cliente | Vendedor) y botones de autocompletado rápido demostrativo.
     path: 'login',
-    canActivate: [guestGuard],
+    canActivate: [unauthenticatedOnlyGuard],
     loadChildren: () => import('./login/login.module').then(m => m.LoginPageModule),
   },
   {
-    // Rutas hijas de pestañas: requieren token JWT vigente.
+    // Contenedor autenticado de las tres pestañas principales del dominio;
+    // solo es alcanzable con una sesión activa (token remoto u offline).
     path: 'tabs',
-    canActivate: [authGuard],
+    canActivate: [authenticatedRouteGuard],
     loadChildren: () => import('./tabs/tabs.module').then(m => m.TabsPageModule),
+  },
+  {
+    // Comodín de seguridad: cualquier ruta inexistente (typo o enlace roto)
+    // regresa al flujo de autenticación sin dejar una pantalla en blanco.
+    path: '**',
+    redirectTo: 'login',
   },
 ];

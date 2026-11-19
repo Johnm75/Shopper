@@ -1,137 +1,143 @@
 /**
- * @fileoverview Pruebas unitarias y de accesibilidad WCAG 2.2 de `Tab2Page` (Galería).
+ * Pruebas unitarias de `Tab2Page` (Fase 6 SDD — TASK-021).
  *
- * @description
- * Verifica los cuatro estados visuales de la galería (carga, vacío, error y
- * cuadrícula), el texto alternativo descriptivo `alt` de cada fotografía para
- * TalkBack/VoiceOver, el `aria-label` del botón flotante de cámara y la
- * restauración del foco tras cerrar el diálogo nativo de captura.
+ * Valida el renderizado sin errores, la presencia de controles accesibles en el
+ * carrito, la actualización de cantidades y el flujo de checkout simulado.
  *
- * @author @ionic-ui-animator (Fase 5B)
- * @author @quality-security-auditor (Fase 6 — cobertura de estados y WCAG 2.2)
- * @phase SDD Fase 6 — Calidad, Accesibilidad y Seguridad
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-12
+ * @phase SDD Fase 6 — Calidad, Pruebas y Auditoría
  */
 
-// Utilidades de pruebas de componentes y signals de Angular.
+// Utilidades de Angular Testing para crear el componente.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { computed, signal } from '@angular/core';
+// Señales y esquema para simular estado reactivo y tolerar web components de Ionic.
+import { CUSTOM_ELEMENTS_SCHEMA, computed, signal } from '@angular/core';
+// Proveedor de router para espiar la navegación posterior al checkout.
+import { Router, provideRouter } from '@angular/router';
+// (No se requiere un módulo global adicional: Tab2PageModule declara los componentes Ionic.)
+// Controlador de toasts de Ionic inyectado por la página.
+import { ToastController } from '@ionic/angular';
 
-// Enrutador en memoria para compilar las directivas de navegación.
-import { RouterModule } from '@angular/router';
-
-// Módulo de feature de la galería.
+// Módulo y componente bajo prueba.
 import { Tab2PageModule } from './tab2.module';
-
-// Componente bajo prueba.
 import { Tab2Page } from './tab2.page';
+// Servicios que la página coordina durante el flujo de compra.
+import { CartService } from '../services/cart.service';
+import { OrderService } from '../services/order.service';
+import { CatalogService } from '../services/catalog.service';
+// Contrato de línea de carrito para construir datos de prueba.
+import type { CartLineItem } from '../models/shoper.model';
 
-// Servicio de fotografías sustituido por un doble reactivo controlado.
-import { PhotoService } from '../services/photo.service';
-
-// Modelos tipados de fotografías y códigos de error.
-import type { PhotoErrorCode, PhotoItem } from '../models/photo.model';
-
+// Suite de pruebas de la pestaña de carrito.
 describe('Tab2Page', () => {
   // Instancia del componente bajo prueba.
   let component: Tab2Page;
-
-  // Fixture con acceso al DOM renderizado.
+  // Fixture para acceder al DOM renderizado.
   let fixture: ComponentFixture<Tab2Page>;
+  // Señal simulada con las líneas del carrito.
+  let cartItemsSignal: ReturnType<typeof signal<CartLineItem[]>>;
+  // Espías de operaciones del carrito y checkout.
+  let incrementSpy: ReturnType<typeof vi.fn>;
+  let decrementSpy: ReturnType<typeof vi.fn>;
+  let removeSpy: ReturnType<typeof vi.fn>;
+  let checkoutSpy: ReturnType<typeof vi.fn>;
+  // Router para verificar la redirección tras el pago simulado.
+  let router: Router;
 
-  // Signals controlables desde cada test para simular estados del servicio.
-  let photosSignal: ReturnType<typeof signal<PhotoItem[]>>;
-  let loadingSignal: ReturnType<typeof signal<boolean>>;
-  let errorSignal: ReturnType<typeof signal<PhotoErrorCode | null>>;
-  let addNewSpy: ReturnType<typeof vi.fn>;
-  let loadSavedSpy: ReturnType<typeof vi.fn>;
+  // Línea de carrito de ejemplo para poblar la vista.
+  const sampleItem: CartLineItem = {
+    productId: 1,
+    title: 'Producto Demo',
+    price: 10,
+    quantity: 2,
+    thumbnail: 'https://img/demo.png',
+  };
 
+  // Configura el entorno de pruebas con servicios simulados.
   beforeEach(async () => {
-    photosSignal = signal<PhotoItem[]>([]);
-    loadingSignal = signal<boolean>(false);
-    errorSignal = signal<PhotoErrorCode | null>(null);
-    addNewSpy = vi.fn().mockResolvedValue(null);
-    loadSavedSpy = vi.fn().mockResolvedValue(undefined);
+    // Restablece el TestBed para aislar el escenario.
+    TestBed.resetTestingModule();
+    // Inicializa la señal del carrito con un ítem de ejemplo.
+    cartItemsSignal = signal<CartLineItem[]>([sampleItem]);
+    // Crea espías para las mutaciones del carrito.
+    incrementSpy = vi.fn().mockResolvedValue(undefined);
+    decrementSpy = vi.fn().mockResolvedValue(undefined);
+    removeSpy = vi.fn().mockResolvedValue(undefined);
+    // Simula un checkout exitoso que devuelve un identificador de orden.
+    checkoutSpy = vi.fn().mockResolvedValue('#ORD-2000');
 
-    const photoServiceMock = {
-      photos: photosSignal,
-      loading: loadingSignal,
-      error: errorSignal,
-      isEmpty: computed(() => photosSignal().length === 0),
-      addNewToGallery: addNewSpy,
-      loadSaved: loadSavedSpy,
-    };
-
+    // Compila el módulo con dobles de las dependencias.
     await TestBed.configureTestingModule({
-      imports: [Tab2PageModule, RouterModule.forRoot([])],
-      providers: [{ provide: PhotoService, useValue: photoServiceMock }],
+      imports: [Tab2PageModule],
+      providers: [
+        provideRouter([]),
+        {
+          provide: CartService,
+          useValue: {
+            cartItemsSignal,
+            totalUnits: computed(() => cartItemsSignal().reduce((sum, item) => sum + item.quantity, 0)),
+            totalAmount: computed(() => cartItemsSignal().reduce((sum, item) => sum + item.price * item.quantity, 0)),
+            loadCart: vi.fn().mockResolvedValue(undefined),
+            incrementQuantity: incrementSpy,
+            decrementQuantity: decrementSpy,
+            removeItemFromCart: removeSpy,
+          },
+        },
+        { provide: OrderService, useValue: { checkoutCart: checkoutSpy } },
+        { provide: CatalogService, useValue: { loadCatalog: vi.fn().mockResolvedValue(undefined) } },
+        { provide: ToastController, useValue: { create: vi.fn().mockResolvedValue({ present: vi.fn() }) } },
+      ],
+      schemas: [CUSTOM_ELEMENTS_SCHEMA],
     }).compileComponents();
 
+    // Obtiene el router y crea el componente.
+    router = TestBed.inject(Router);
     fixture = TestBed.createComponent(Tab2Page);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
+  // Limpia los espías y el entorno después de cada prueba.
   afterEach(() => {
+    // Restablece el módulo de pruebas.
+    TestBed.resetTestingModule();
+    // Restaura los mocks de Vitest.
     vi.restoreAllMocks();
   });
 
-  it('debe hidratar la galería en ngOnInit y exponer aria-label en el FAB de cámara (WCAG 4.1.2)', () => {
+  // Debe renderizar la página sin errores.
+  it('debe renderizar Tab2Page sin errores', () => {
+    // Comprueba que la instancia sea válida.
     expect(component).toBeTruthy();
-    expect(loadSavedSpy).toHaveBeenCalledTimes(1);
-
-    const host = fixture.nativeElement as HTMLElement;
-    const fab = host.querySelector('ion-fab-button');
-    // Al hidratarse `ion-fab-button` (Ionic 9), Stencil transfiere `aria-label` al `<button>` nativo del Shadow DOM.
-    const fabLabel =
-      fab?.getAttribute('aria-label') ??
-      fab?.shadowRoot?.querySelector('button')?.getAttribute('aria-label');
-    expect(fabLabel).toBe('Tomar una fotografía y añadirla a la galería');
   });
 
-  it('debe renderizar cuadrícula con alt descriptivo en español y chip contador accesible (WCAG 1.1.1)', () => {
-    photosSignal.set([
-      {
-        id: 'p-1',
-        fileName: 'photos/1730000000000-a.jpeg',
-        webviewPath: 'https://localhost/_capacitor_file_/a.jpeg',
-        format: 'jpeg',
-        capturedAt: '2026-11-05T15:30:00.000Z',
-        source: 'camera',
-        sizeBytes: 2048,
-      },
-    ]);
-    fixture.detectChanges();
-
+  // Debe exponer atributos de accesibilidad en la vista del carrito.
+  it('debe incluir región aria-live="polite" y controles accesibles', () => {
+    // Obtiene el elemento raíz de la vista.
     const host = fixture.nativeElement as HTMLElement;
-    const img = host.querySelector('ion-img') as (HTMLElement & { alt?: string }) | null;
-    const chip = host.querySelector('.counter-chip');
-
-    // En web components Stencil (`ion-img`), el enlace `[alt]` asigna la propiedad DOM `alt`.
-    expect(img?.alt ?? img?.getAttribute('alt')).toContain('Fotografía 1 de 1');
-    expect(chip?.getAttribute('aria-label')).toBe('1 fotografías en la galería');
+    // Verifica la existencia de la región de anuncios accesibles.
+    expect(host.querySelector('[aria-live="polite"]')).toBeTruthy();
   });
 
-  it('debe anunciar errores con role="alert" y mostrar toast al añadir una foto', async () => {
-    errorSignal.set('permission_denied');
-    fixture.detectChanges();
+  // Debe delegar el incremento de cantidad al servicio de carrito.
+  it('debe delegar el incremento de cantidad al CartService', async () => {
+    // Invoca el manejador de incremento con el ítem de ejemplo.
+    await component.incrementQuantity(sampleItem);
+    // Verifica que el servicio reciba el identificador correcto.
+    expect(incrementSpy).toHaveBeenCalledWith(sampleItem.productId);
+  });
 
-    const host = fixture.nativeElement as HTMLElement;
-    const alertBox = host.querySelector('[role="alert"]');
-    expect(alertBox?.textContent).toContain('Sin acceso a la cámara');
+  // Debe ejecutar el checkout y navegar a la pestaña de pedidos.
+  it('debe ejecutar checkout y navegar a /tabs/tab3', async () => {
+    // Espía la navegación para confirmar el destino posterior al pago.
+    const navigateSpy = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
 
-    // Simula una captura exitosa y comprueba la apertura del toast informativo.
-    addNewSpy.mockResolvedValueOnce({
-      id: 'p-2',
-      fileName: 'photos/nueva.jpeg',
-      webviewPath: 'https://localhost/_capacitor_file_/nueva.jpeg',
-      format: 'jpeg',
-      capturedAt: '2026-11-05T16:00:00.000Z',
-      source: 'camera',
-      sizeBytes: 1024,
-    });
+    // Ejecuta el flujo de checkout simulado.
+    await component.checkout();
 
-    await component.takePhoto();
-    expect(component.toastOpen()).toBe(true);
-    expect(component.toastMessage()).toBe('Foto añadida a la galería');
+    // Comprueba que se haya creado la orden y redirigido al seguimiento.
+    expect(checkoutSpy).toHaveBeenCalled();
+    expect(navigateSpy).toHaveBeenCalledWith('/tabs/tab3');
   });
 });

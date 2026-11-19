@@ -1,90 +1,118 @@
 /**
- * @fileoverview Pruebas unitarias de `TokenStorageService`.
+ * Pruebas unitarias de `TokenStorageService` (compatibilidad y API canónica).
  *
- * @description
- * Valida la fachada tipada sobre `@capacitor/preferences` (cuya implementación
- * web `PreferencesWeb` persiste sobre `window.localStorage` en jsdom) para el
- * token JWT, la marca de expiración y el perfil del estudiante, incluyendo
- * recuperación ante JSON corrupto y preservación del índice de fotografías al
- * cerrar sesión.
+ * Verifica el almacenamiento canónico de sesión en `shoper.session.v1` y el
+ * comportamiento de los métodos heredados ante datos corruptos.
  *
- * @author @quality-security-auditor (Fase 6)
- * @phase SDD Fase 6 — Calidad, Accesibilidad y Seguridad
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-12
+ * @phase SDD Fase 6 — Calidad, Pruebas y Auditoría
  */
 
-// Contenedor de inyección de pruebas de Angular.
+// Utilidades de Angular Testing para obtener instancias en un entorno aislado.
 import { TestBed } from '@angular/core/testing';
-
-// Plugin real de preferencias de Capacitor (resuelve `PreferencesWeb` en entorno jsdom).
+// Almacenamiento nativo simulado utilizado por el servicio.
 import { Preferences } from '@capacitor/preferences';
 
-// Servicio de almacenamiento de sesión bajo prueba.
+// Servicio bajo prueba que abstrae la persistencia de la sesión.
 import { TokenStorageService } from './token-storage.service';
-
-// Configuración de entorno para comprobar las claves exactas persistidas.
+// Entorno con las claves de almacenamiento canónicas y heredadas.
 import { environment } from '../../environments/environment';
+// Contrato de sesión persistida para construir registros deterministas.
+import type { PersistedSessionRecord } from '../models/shoper.model';
 
+// Suite de pruebas del almacenamiento de sesión.
 describe('TokenStorageService', () => {
-  // Instancia del servicio resuelta desde TestBed.
-  let service: TokenStorageService;
+  // Instancia del servicio creada en cada caso.
+  let tokenStorageService: TokenStorageService;
 
+  // Prepara un entorno limpio antes de cada prueba.
   beforeEach(async () => {
-    // Limpia el almacenamiento web subyacente antes de cada caso de prueba.
+    // Restablece el TestBed para evitar fugas entre pruebas.
+    TestBed.resetTestingModule();
+    // Limpia el almacenamiento web.
     window.localStorage.clear();
+    // Reinicia Preferences para partir sin sesión persistida.
     await Preferences.clear();
 
+    // Configura un módulo vacío ya que el servicio es `providedIn: 'root'`.
     TestBed.configureTestingModule({});
-    service = TestBed.inject(TokenStorageService);
+    // Resuelve la instancia del servicio desde el inyector.
+    tokenStorageService = TestBed.inject(TokenStorageService);
   });
 
-  afterEach(() => {
-    window.localStorage.clear();
+  // Limpia el estado tras cada prueba.
+  afterEach(async () => {
+    // Elimina cualquier dato residual en Preferences.
+    await Preferences.clear();
+    // Restablece el TestBed.
+    TestBed.resetTestingModule();
+    // Restaura los espías de Vitest.
+    vi.restoreAllMocks();
   });
 
-  it('debe persistir y recuperar el token JWT y su expiración numérica', async () => {
-    // Escribe un token y una marca temporal epoch en milisegundos.
-    await service.setToken('jwt.compact.token');
-    await service.setExpiresAt(1_800_000_000_000);
+  // Debe persistir y recuperar el registro canónico de sesión.
+  it('debe persistir y recuperar el registro de sesión canónico', async () => {
+    // Construye un registro de sesión válido con la versión de esquema actual.
+    const sessionRecord: PersistedSessionRecord = {
+      accessToken: 'token-demo',
+      refreshToken: 'refresh-demo',
+      username: 'emilys',
+      firstName: 'Emily',
+      lastName: 'Stone',
+      role: 'customer',
+      source: 'remote-api',
+      schemaVersion: 1,
+      expiresAt: '2026-11-13T00:00:00.000Z',
+    };
 
-    // Verifica que ambos valores se leen con el tipo esperado.
-    expect(await service.getToken()).toBe('jwt.compact.token');
-    expect(await service.getExpiresAt()).toBe(1_800_000_000_000);
+    // Guarda el registro completo en el almacenamiento.
+    await tokenStorageService.setSession(sessionRecord);
+    // Recupera el registro para verificar la ronda de lectura/escritura.
+    const restoredSession = await tokenStorageService.getSession();
+
+    // Comprueba que el token y el rol se conserven intactos.
+    expect(restoredSession?.accessToken).toBe('token-demo');
+    expect(restoredSession?.role).toBe('customer');
   });
 
-  it('debe devolver null y limpiar la clave si el JSON del perfil está corrupto (GUD-005)', async () => {
-    // Inyecta un JSON truncado en la clave del perfil.
-    await Preferences.set({ key: environment.jwt.profileKey, value: '{corrupt-json' });
-
-    // Al leer, el servicio debe capturar el fallo, eliminar la clave dañada y devolver null.
-    const profile = await service.getProfile();
-    expect(profile).toBeNull();
-    const raw = await Preferences.get({ key: environment.jwt.profileKey });
-    expect(raw.value).toBeNull();
-  });
-
-  it('debe limpiar únicamente las claves de sesión en clearSession conservando la galería (AC-005)', async () => {
-    // Prepara datos de sesión junto con el índice local de fotografías.
-    await service.setToken('token-activo');
-    await service.setExpiresAt(Date.now() + 60_000);
-    await service.setProfile({
-      id: 'u-1',
-      name: 'Estudiante',
-      email: 'estudiante@example.com',
-      role: 'student',
+  // Debe limpiar la sesión canónica y las claves heredadas.
+  it('debe limpiar la sesión canónica y las claves heredadas al invocar clearStoredSession', async () => {
+    // Siembra una sesión canónica y una clave heredada para simular datos previos.
+    await tokenStorageService.setSession({
+      accessToken: 'legacy-token',
+      refreshToken: '',
+      username: 'legacy',
+      firstName: 'Legacy',
+      lastName: 'User',
+      role: 'customer',
+      source: 'offline-fallback',
+      schemaVersion: 1,
     });
-    await Preferences.set({
-      key: environment.gallery.indexKey,
-      value: '{"schemaVersion":1,"items":[]}',
-    });
+    await Preferences.set({ key: environment.jwtSession.accessTokenKey, value: 'old-token' });
 
-    // Ejecuta la limpieza de sesión.
-    await service.clearSession();
+    // Ejecuta la limpieza completa.
+    await tokenStorageService.clearStoredSession();
 
-    // Verifica que el token desaparece pero el índice de fotografías permanece intacto.
-    expect(await service.getToken()).toBeNull();
-    expect(await service.getExpiresAt()).toBeNull();
-    expect(await service.getProfile()).toBeNull();
-    const gallerySaved = await Preferences.get({ key: environment.gallery.indexKey });
-    expect(gallerySaved.value).toBe('{"schemaVersion":1,"items":[]}');
+    // Verifica que tanto la sesión canónica como la clave heredada queden vacías.
+    const canonical = await Preferences.get({ key: environment.storageKeys.session });
+    const legacyToken = await Preferences.get({ key: environment.jwtSession.accessTokenKey });
+    expect(canonical.value).toBeNull();
+    expect(legacyToken.value).toBeNull();
+  });
+
+  // Debe devolver null y limpiar la clave canónica si el JSON almacenado está dañado.
+  it('debe devolver null y limpiar la sesión si el JSON canónico está dañado', async () => {
+    // Escribe un valor inválido directamente en la clave de sesión.
+    await Preferences.set({ key: environment.storageKeys.session, value: '{corrupt-json' });
+
+    // Intenta leer la sesión; el servicio debe tolerar el error y sanear el estado.
+    const restoredSession = await tokenStorageService.getSession();
+    // Comprueba que el resultado sea nulo.
+    expect(restoredSession).toBeNull();
+
+    // Verifica que la clave corrupta haya sido eliminada.
+    const rawStoredSession = await Preferences.get({ key: environment.storageKeys.session });
+    expect(rawStoredSession.value).toBeNull();
   });
 });

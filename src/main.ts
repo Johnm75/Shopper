@@ -1,32 +1,29 @@
 /**
- * @fileoverview Punto de entrada de la aplicación Angular standalone.
+ * Punto de entrada de la aplicación Ionic/Angular "App Shoper".
  *
- * @description
- * Arranca la aplicación con `bootstrapApplication` usando la configuración
- * centralizada `appConfig`. Registra los elementos personalizados de
- * `@ionic/pwa-elements` para que la cámara funcione en navegador (REQ-007, RISK-007).
+ * Registra los elementos personalizados de `@ionic/pwa-elements` para que la
+ * cámara funcione en navegador de escritorio y arranca la aplicación con la
+ * configuración centralizada de `app.config.ts`.
  *
- * @author @capacitor-architect (Fase 3 / Fase 5A)
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-12
  * @phase SDD Fase 3 — Arquitectura Capacitor
- * @phase SDD Fase 5A — Plugins Nativos y Almacenamiento
  */
 
-// Función de arranque para aplicaciones standalone.
+// Función de Angular para arrancar una aplicación standalone.
 import { bootstrapApplication } from '@angular/platform-browser';
+// Loader de elementos personalizados de Ionic para modales web (cámara, etc.).
+import { defineCustomElements } from '@ionic/pwa-elements/loader';
 
 // Componente raíz de la aplicación.
 import { AppComponent } from './app/app.component';
-
-// Configuración centralizada de providers.
+// Configuración global de proveedores (Ionic, rutas, interceptores HTTP).
 import { appConfig } from './app/app.config';
 
-// Registra los elementos web de PWA Elements (cámara, diálogos) en el navegador.
-import { defineCustomElements } from '@ionic/pwa-elements/loader';
-
-// Define los custom elements de `@ionic/pwa-elements` en el objeto `window` global.
-// Esto es necesario en modo web porque `Camera.getPhoto` usa un modal nativo de HTML.
+// Registra los custom elements de PWA Elements en el objeto window del navegador.
 defineCustomElements(window);
 
-// Arranca la aplicación Angular con la configuración standalone.
-bootstrapApplication(AppComponent, appConfig)
-  .catch(err => console.error(err));
+// Inicia la aplicación inyectando la configuración canónica de proveedores.
+bootstrapApplication(AppComponent, appConfig).catch(bootstrapError =>
+  console.error(bootstrapError)
+);

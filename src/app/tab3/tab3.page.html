@@ -1,96 +1,263 @@
 <!--
-  @fileoverview Plantilla de la página «Cuenta» (`Tab3Page`).
-
-  @description
-  Muestra la sesión activa dentro de tarjetas elevadas claramente separadas del
-  fondo, el token JWT enmascarado (`SEC-007`) y un botón destructivo sólido de
-  alto contraste «Cerrar sesión» conectado a un diálogo de confirmación `ion-alert`.
-
-  @author @ionic-ui-animator (Fase 5B — Desarrollo UI)
-  @phase SDD Fase 5B — Desarrollo de componentes y navegación
+  ===========================================================================
+  APP SHOPER — Vista Mis Compras (Cliente) / Pedidos Activos y Cuenta (`Tab3Page`)
+  ===========================================================================
+  Propósito : Renderizar el seguimiento logístico de los pedidos con la línea
+              de tiempo global de 4 pasos (`.shoper-timeline` de global.scss):
+              - Cliente: historial completo de compras con `statusHistory` y
+                timestamps ISO-8601.
+              - Vendedor: cola de pedidos activos con botón para avanzar al
+                siguiente estado válido, panel de sesión JWT enmascarada
+                (solo los últimos 6 caracteres) y restablecimiento de la demo.
+  Fase SDD  : Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-019).
+  Autor     : John Fredy Marciales Morales
+  Fecha     : 2026-11-12
+  ===========================================================================
 -->
+<!-- `fullscreen` extiende el fondo bajo la cabecera persistente del contenedor. -->
+<ion-content [fullscreen]="true">
+  <div class="shoper-page-padding orders-page">
 
-<!-- Cabecera fija con título enfocable por lectores de pantalla. -->
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title id="account-title" tabindex="-1">Cuenta</ion-title>
-  </ion-toolbar>
-</ion-header>
+    <!-- Encabezado de sección: receptor del foco accesible al entrar. -->
+    <h1 id="tab3-title" tabindex="-1" class="shoper-section-title orders-title">
+      @if (activeRole() === 'customer') {
+        Mis compras
+      } @else {
+        Pedidos del vendedor
+      }
+    </h1>
 
-<!-- Lienzo desplazable de la vista de cuenta. -->
-<ion-content [fullscreen]="true" class="account-content">
+    <!-- Región de estado accesible (ACC-001): anuncia avances de estado,
+         restablecimientos y errores sin desplazar el foco del usuario. -->
+    <div
+      class="orders-live-region shoper-live-banner"
+      role="status"
+      aria-live="polite"
+      [class.orders-live-region--error]="actionMessageType() === 'error'">
+      @if (actionMessage(); as message) {
+        <ion-icon
+          [name]="actionMessageType() === 'error' ? 'alert-circle-outline' : 'checkmark-circle-outline'"
+          aria-hidden="true">
+        </ion-icon>
+        <span>{{ message }}</span>
+      }
+    </div>
 
-  <!-- Título grande colapsable en iOS. -->
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Cuenta</ion-title>
-    </ion-toolbar>
-  </ion-header>
-
-  <div class="account-wrapper">
-    @if (session(); as sessionValue) {
-
-      <!-- Tarjeta elevada de identidad del estudiante autenticado. -->
-      <section class="profile-card app-surface-card">
-        <ion-avatar class="profile-avatar" aria-hidden="true">
-          <ion-icon name="person"></ion-icon>
-        </ion-avatar>
-
-        <h2 class="profile-name">{{ sessionValue.user.name }}</h2>
-        <p class="profile-email">{{ sessionValue.user.email }}</p>
-
-        <ion-chip color="primary" class="profile-role">
-          <ion-label>Estudiante</ion-label>
-        </ion-chip>
-      </section>
-
-      <!-- Tarjeta con metadatos técnicos no sensibles de la sesión activa. -->
-      <ion-list inset="true" class="session-list app-surface-card" aria-label="Detalles de la sesión">
-        <ion-item lines="full">
-          <ion-icon name="key-outline" color="primary" slot="start" aria-hidden="true"></ion-icon>
-          <ion-label>Token JWT</ion-label>
-          <ion-note slot="end" class="mono-note">{{ tokenPreview() }}</ion-note>
-        </ion-item>
-
-        <ion-item lines="none">
-          <ion-icon name="time-outline" color="secondary" slot="start" aria-hidden="true"></ion-icon>
-          <ion-label>Vigencia restante</ion-label>
-          <ion-note slot="end">
-            {{ expiresInMinutes() !== null ? (expiresInMinutes() + ' min restantes') : 'sin datos' }}
-          </ion-note>
-        </ion-item>
-      </ion-list>
-
-      <!-- Botón sólido carmesí claramente identificable para cerrar sesión. -->
-      <div class="logout-area">
-        <ion-button
-          id="logout-trigger"
-          class="logout-button"
-          expand="block"
-          fill="solid"
-          color="danger"
-          [strong]="true">
-          <ion-icon name="log-out-outline" slot="start" aria-hidden="true"></ion-icon>
-          Cerrar sesión en este dispositivo
-        </ion-button>
+    <!-- Spinner de hidratación de los pedidos persistidos. -->
+    @if (isLoadingOrders()) {
+      <div class="orders-loading" role="progressbar" aria-label="Cargando pedidos">
+        <ion-spinner name="crescent"></ion-spinner>
       </div>
+    }
 
-      <!-- Diálogo accesible de confirmación antes de borrar el token local. -->
-      <ion-alert
-        trigger="logout-trigger"
-        header="¿Cerrar sesión?"
-        message="Se eliminará el token de este dispositivo. Tus fotografías guardadas se conservarán."
-        [buttons]="alertButtons">
-      </ion-alert>
+    <!-- ================================================================
+         VISTA DEL ROL CLIENTE: historial completo de compras con línea de
+         tiempo de 4 pasos y detalle de `statusHistory` (US-04).
+         ================================================================ -->
+    @if (activeRole() === 'customer') {
+      @if (!isLoadingOrders() && orders().length > 0) {
+        @for (order of orders(); track order.id) {
+          <!-- Tarjeta de compra: cabecera con estado, resumen, línea de tiempo. -->
+          <article class="shoper-order-card app-surface-card" [attr.aria-label]="'Pedido ' + order.id + ', estado ' + order.currentStatus">
+            <!-- Cabecera: identificador del pedido + insignia de estado actual. -->
+            <header class="shoper-order-card__header">
+              <h2 class="shoper-order-card__id">{{ order.id }}</h2>
+              <!-- Insignia con la clase global del estado logístico en curso. -->
+              <span [class]="badgeClassForStatus(order.currentStatus)">
+                {{ order.currentStatus }}
+              </span>
+            </header>
 
+            <!-- Resumen comercial: unidades, importe total y fecha de creación. -->
+            <p class="shoper-muted-text shoper-order-card__meta">
+              {{ order.totalUnits }} {{ order.totalUnits === 1 ? 'unidad' : 'unidades' }} ·
+              Total {{ order.totalAmount | currency: 'USD' : 'symbol' : '1.2-2' }} ·
+              Creado el {{ formatIsoDateTime(order.createdAt) }}
+            </p>
+
+            <!-- Detalle de las líneas incluidas en el pedido. -->
+            <ul class="shoper-order-card__items" [attr.aria-label]="'Productos del pedido ' + order.id">
+              @for (item of order.items; track item.productId) {
+                <li class="shoper-order-card__item">
+                  <span class="shoper-order-card__item-quantity">{{ item.quantity }}×</span>
+                  {{ item.title }}
+                </li>
+              }
+            </ul>
+
+            <!-- Línea de tiempo logística de 4 pasos (global.scss §10 y §14.5):
+                 pasos superados en verde con ✓, paso actual con halo de color
+                 semántico y pasos pendientes en gris neutro. Las transiciones CSS
+                 animan el conector y el resaltado del paso activo al avanzar estado
+                 (220 ms, curva ease-out), comunicando el progreso del pedido. -->
+            <ol class="shoper-timeline" [attr.aria-label]="'Progreso logístico del pedido ' + order.id">
+              @for (status of orderStatusFlow; track status; let stepIndex = $index) {
+                <li class="shoper-timeline-step" [ngClass]="stepClasses(order, stepIndex)">
+                  <!-- Punto del paso: muestra ✓ solo cuando ya se completó. -->
+                  <span class="shoper-timeline-step__dot" aria-hidden="true">
+                    @if (stepIndex < currentStepIndex(order)) {
+                      <ion-icon name="checkmark-outline"></ion-icon>
+                    }
+                  </span>
+                  <!-- Etiqueta textual del paso (refuerzo no-cromático). -->
+                  <span class="shoper-timeline-step__label">{{ status }}</span>
+                </li>
+              }
+            </ol>
+
+            <!-- Historial de cambios de estado con timestamps ISO-8601 crudos
+                 (evidencia de la máquina de estados) y su versión legible. -->
+            <section class="shoper-order-history" [attr.aria-label]="'Historial de estados del pedido ' + order.id">
+              <h3 class="shoper-order-history__title">Historial de estados</h3>
+              <ol class="shoper-order-history__list">
+                @for (entry of order.statusHistory; track entry.timestamp) {
+                  <li class="shoper-order-history__entry">
+                    <!-- Icono de reloj: marca visual de la entrada temporal. -->
+                    <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+                    <span class="shoper-order-history__status">{{ entry.status }}</span>
+                    <!-- Timestamp ISO-8601 tal como lo persiste OrderService. -->
+                    <code class="shoper-order-history__timestamp">{{ entry.timestamp }}</code>
+                    <!-- Fecha legible en español para el usuario final. -->
+                    <span class="shoper-muted-text shoper-order-history__local">
+                      {{ formatIsoDateTime(entry.timestamp) }}
+                    </span>
+                  </li>
+                }
+              </ol>
+            </section>
+          </article>
+        }
+      } @else if (!isLoadingOrders()) {
+        <!-- Estado vacío del Cliente: aún no ha realizado ninguna compra. -->
+        <div class="orders-empty app-surface-card" role="status">
+          <ion-icon name="receipt-outline" class="orders-empty__icon" aria-hidden="true"></ion-icon>
+          <p class="shoper-muted-text">
+            Todavía no tienes compras. Agrega productos en el catálogo y pulsa
+            «Pagar ahora» para crear tu primer pedido.
+          </p>
+          <!-- Atajo directo a la pestaña del catálogo. -->
+          <ion-button
+            fill="outline"
+            color="primary"
+            routerLink="/tabs/tab1"
+            aria-label="Ir al catálogo de productos">
+            Explorar el catálogo
+          </ion-button>
+        </div>
+      }
     } @else {
+      <!-- ================================================================
+           VISTA DEL ROL VENDEDOR: cola de pedidos activos, archivo de
+           entregados, panel de sesión JWT y restablecimiento de la demo.
+           ================================================================ -->
+      @if (!isLoadingOrders() && activeSellerOrders().length > 0) {
+        <!-- Subtítulo de la cola de trabajo pendiente de despacho. -->
+        <h2 class="orders-subtitle">Cola de pedidos activos ({{ activeSellerOrders().length }})</h2>
 
-      <!-- Estado defensivo cuando no existe sesión activa. -->
-      <div class="no-session app-surface-card" role="status">
-        <p class="no-session-text">No hay una sesión activa en este dispositivo.</p>
-      </div>
+        @for (order of activeSellerOrders(); track order.id) {
+          <!-- Tarjeta de gestión: mismo seguimiento visual + acción de avance. -->
+          <article class="shoper-order-card app-surface-card" [attr.aria-label]="'Pedido activo ' + order.id + ', estado ' + order.currentStatus">
+            <!-- Cabecera: identificador + insignia del estado logístico actual. -->
+            <header class="shoper-order-card__header">
+              <h3 class="shoper-order-card__id">{{ order.id }}</h3>
+              <span [class]="badgeClassForStatus(order.currentStatus)">
+                {{ order.currentStatus }}
+              </span>
+            </header>
 
+            <!-- Resumen comercial del pedido gestionado. -->
+            <p class="shoper-muted-text shoper-order-card__meta">
+              {{ order.totalUnits }} {{ order.totalUnits === 1 ? 'unidad' : 'unidades' }} ·
+              Total {{ order.totalAmount | currency: 'USD' : 'symbol' : '1.2-2' }} ·
+              Creado el {{ formatIsoDateTime(order.createdAt) }}
+            </p>
+
+            <!-- Línea de tiempo compartida con la vista del Cliente: el vendedor
+                 ve en tiempo real dónde está el despacho. Incluye las mismas
+                 transiciones de conector/paso activo (global.scss §14.5) para que
+                 el avance de estado se perciba de forma fluida tras cada acción. -->
+            <ol class="shoper-timeline" [attr.aria-label]="'Progreso logístico del pedido ' + order.id">
+              @for (status of orderStatusFlow; track status; let stepIndex = $index) {
+                <li class="shoper-timeline-step" [ngClass]="stepClasses(order, stepIndex)">
+                  <span class="shoper-timeline-step__dot" aria-hidden="true">
+                    @if (stepIndex < currentStepIndex(order)) {
+                      <ion-icon name="checkmark-outline"></ion-icon>
+                    }
+                  </span>
+                  <span class="shoper-timeline-step__label">{{ status }}</span>
+                </li>
+              }
+            </ol>
+
+            <!-- Acción principal del Vendedor (REQ-008): avanza al SIGUIENTE
+                 estado válido de la máquina finita; el servicio valida la
+                 transición y registra el timestamp ISO-8601 en el historial. -->
+            <ion-button
+              class="shoper-order-card__advance"
+              expand="block"
+              fill="solid"
+              color="primary"
+              (click)="advanceOrder(order)"
+              [attr.aria-label]="'Avanzar pedido ' + order.id + ' al estado ' + nextStatusFor(order)">
+              <ion-icon name="arrow-forward-circle-outline" slot="start" aria-hidden="true"></ion-icon>
+              Avanzar a «{{ nextStatusFor(order) }}»
+            </ion-button>
+          </article>
+        }
+      } @else if (!isLoadingOrders()) {
+        <!-- Cola vacía: no hay pedidos pendientes de despacho. -->
+        <div class="orders-empty app-surface-card" role="status">
+          <ion-icon name="checkmark-circle-outline" class="orders-empty__icon" aria-hidden="true"></ion-icon>
+          <p class="shoper-muted-text">No hay pedidos activos en la cola de despacho.</p>
+        </div>
+      }
+
+      <!-- Archivo compacto de pedidos ya entregados (ciclo cerrado). -->
+      @if (deliveredSellerOrders().length > 0) {
+        <h2 class="orders-subtitle">Entregados ({{ deliveredSellerOrders().length }})</h2>
+        <ion-list class="shoper-delivered-list" aria-label="Pedidos entregados">
+          @for (order of deliveredSellerOrders(); track order.id) {
+            <!-- Fila de archivo: identificador, importe y sello de estado. -->
+            <ion-item lines="full" class="shoper-delivered-item">
+              <ion-label class="shoper-delivered-item__label">
+                <span class="shoper-delivered-item__id">{{ order.id }}</span>
+                <span class="shoper-muted-text">
+                  {{ order.totalUnits }} uds ·
+                  {{ order.totalAmount | currency: 'USD' : 'symbol' : '1.2-2' }}
+                </span>
+              </ion-label>
+              <!-- Insignia violeta de ciclo completado (global.scss §8). -->
+              <span slot="end" class="badge-delivered">Entregado</span>
+            </ion-item>
+          }
+        </ion-list>
+      }
+
+      <!-- Restablecimiento integral de la demostración: órdenes semilla +
+           catálogo base API + carrito vacío. Se confirma con `ion-alert`
+           porque sobrescribe datos locales (acción destructiva). -->
+      <ion-button
+        id="reset-demo-trigger"
+        expand="block"
+        fill="outline"
+        color="medium"
+        [disabled]="isResettingDemoData()"
+        aria-label="Restablecer los datos de demostración">
+        @if (isResettingDemoData()) {
+          <ion-spinner name="crescent" aria-hidden="true"></ion-spinner>
+        } @else {
+          <ion-icon name="refresh-outline" slot="start" aria-hidden="true"></ion-icon>
+          Restablecer datos de demostración
+        }
+      </ion-button>
+
+      <!-- Diálogo preventivo del restablecimiento, vinculado por `id`. -->
+      <ion-alert
+        trigger="reset-demo-trigger"
+        header="¿Restablecer la demostración?"
+        message="Se regenerarán las 2 órdenes semilla (#ORD-1001 y #ORD-1002), el catálogo base de la API y se vaciará el carrito. Esta acción sobrescribe los datos locales."
+        [buttons]="resetConfirmationButtons">
+      </ion-alert>
     }
   </div>
-
 </ion-content>

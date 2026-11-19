@@ -1,0 +1,233 @@
+<!--
+  ===========================================================================
+  APP SHOPER — Vista Usuario, Token JWT y Cierre de Sesión (`Tab4Page`)
+  ===========================================================================
+  Propósito : Mostrar la información vinculada al usuario autenticado (tanto
+              Cliente como Tienda), permitir inspeccionar el token JWT,
+              consultar el estado de la base local `shopper_db` y cerrar sesión.
+  Autor     : John Fredy Marciales Morales
+  Fecha     : 2026-11-18
+  ===========================================================================
+-->
+<ion-content [fullscreen]="true">
+  <div class="shoper-page-padding user-page">
+
+    <!-- Encabezado principal receptor de foco accesible. -->
+    <h1 id="tab4-title" tabindex="-1" class="shoper-section-title user-title">
+      Usuario y sesión
+    </h1>
+
+    <!-- Región accesible para anunciar copia o visualización del token. -->
+    <div class="user-live-region shoper-live-banner" role="status" aria-live="polite">
+      @if (statusMessage(); as message) {
+        <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+        <span>{{ message }}</span>
+      }
+    </div>
+
+    @if (sessionSignal(); as session) {
+      <!-- ==============================================================
+           TARJETA DE PERFIL VINCULADA AL USUARIO (Cliente o Tienda)
+           ============================================================== -->
+      <section
+        class="user-profile-card app-surface-card"
+        [attr.aria-label]="'Perfil de usuario ' + fullName() + ', rol ' + activeRoleLabel()">
+        <div
+          class="user-avatar"
+          [class.user-avatar--seller]="activeRole() === 'seller'"
+          aria-hidden="true">
+          <ion-icon
+            [name]="activeRole() === 'customer' ? 'person-outline' : 'storefront-outline'">
+          </ion-icon>
+        </div>
+
+        <h2 class="user-profile-card__name">{{ fullName() }}</h2>
+        <p class="user-profile-card__handle shoper-muted-text">@{{ session.username }}</p>
+
+        <span
+          class="user-role-pill"
+          [class.user-role-pill--seller]="activeRole() === 'seller'">
+          <ion-icon
+            [name]="activeRole() === 'customer' ? 'person-outline' : 'briefcase-outline'"
+            aria-hidden="true">
+          </ion-icon>
+          Cuenta {{ activeRoleLabel() }}
+        </span>
+
+        <p class="user-profile-card__desc shoper-muted-text">
+          {{ roleDescription() }}
+        </p>
+
+        <!-- Accesos rápidos y resumen vinculados al rol activo. -->
+        <div class="user-summary-grid">
+          @if (activeRole() === 'customer') {
+            <a class="user-summary-stat" routerLink="/tabs/tab2" aria-label="Ir al carrito de compras">
+              <ion-icon name="cart-outline" aria-hidden="true"></ion-icon>
+              <span class="user-summary-stat__value">{{ cartUnits() }}</span>
+              <span class="user-summary-stat__label">En carrito</span>
+            </a>
+            <a class="user-summary-stat" routerLink="/tabs/tab3" aria-label="Ir a mis compras">
+              <ion-icon name="receipt-outline" aria-hidden="true"></ion-icon>
+              <span class="user-summary-stat__value">{{ totalOrdersCount() }}</span>
+              <span class="user-summary-stat__label">Mis compras</span>
+            </a>
+          } @else {
+            <a class="user-summary-stat" routerLink="/tabs/tab1" aria-label="Ir al inventario de la tienda">
+              <ion-icon name="storefront-outline" aria-hidden="true"></ion-icon>
+              <span class="user-summary-stat__value">{{ catalogCount() }}</span>
+              <span class="user-summary-stat__label">Productos</span>
+            </a>
+            <a class="user-summary-stat" routerLink="/tabs/tab3" aria-label="Ir a pedidos activos">
+              <ion-icon name="receipt-outline" aria-hidden="true"></ion-icon>
+              <span class="user-summary-stat__value">{{ activeOrdersCount() }}</span>
+              <span class="user-summary-stat__label">Pedidos activos</span>
+            </a>
+          }
+        </div>
+      </section>
+
+      <!-- ==============================================================
+           PANEL DEL TOKEN JWT Y VIGENCIA DE SESIÓN
+           ============================================================== -->
+      <h2 class="user-subtitle">Token JWT y sesión</h2>
+      <ion-list class="shoper-session-list app-surface-card" aria-label="Detalles del token JWT y sesión">
+        <ion-item lines="full">
+          <ion-icon name="person-outline" color="primary" slot="start" aria-hidden="true"></ion-icon>
+          <ion-label>Usuario</ion-label>
+          <ion-note slot="end">{{ session.username }}</ion-note>
+        </ion-item>
+
+        <ion-item lines="full">
+          <ion-icon name="shield-checkmark-outline" color="primary" slot="start" aria-hidden="true"></ion-icon>
+          <ion-label>Rol vinculado</ion-label>
+          <ion-note slot="end">{{ activeRoleLabel() }}</ion-note>
+        </ion-item>
+
+        <ion-item lines="full">
+          <ion-icon name="key-outline" color="primary" slot="start" aria-hidden="true"></ion-icon>
+          <ion-label>Token JWT</ion-label>
+          <ion-note slot="end" class="shoper-mono-note">{{ maskedTokenPreview() }}</ion-note>
+        </ion-item>
+
+        <ion-item lines="full">
+          <ion-icon name="receipt-outline" color="secondary" slot="start" aria-hidden="true"></ion-icon>
+          <ion-label>Origen</ion-label>
+          <ion-note slot="end">{{ tokenSourceLabel() }}</ion-note>
+        </ion-item>
+
+        <ion-item lines="full">
+          <ion-icon name="time-outline" color="secondary" slot="start" aria-hidden="true"></ion-icon>
+          <ion-label>Vigencia restante</ion-label>
+          <ion-note slot="end">
+            {{ remainingSessionMinutes() !== null ? (remainingSessionMinutes() + ' min') : 'sin datos' }}
+          </ion-note>
+        </ion-item>
+
+        <ion-item lines="none">
+          <ion-icon name="time-outline" color="medium" slot="start" aria-hidden="true"></ion-icon>
+          <ion-label>Expira</ion-label>
+          <ion-note slot="end">{{ formatExpirationDate(session.expiresAt) }}</ion-note>
+        </ion-item>
+      </ion-list>
+
+      <!-- Acciones de inspección del token JWT. -->
+      <div class="user-token-actions">
+        <ion-button
+          expand="block"
+          fill="outline"
+          color="primary"
+          (click)="toggleTokenVisibility()"
+          [attr.aria-expanded]="isTokenVisible()"
+          aria-label="Mostrar u ocultar el token JWT completo">
+          <ion-icon
+            [name]="isTokenVisible() ? 'eye-off-outline' : 'eye-outline'"
+            slot="start"
+            aria-hidden="true">
+          </ion-icon>
+          {{ isTokenVisible() ? 'Ocultar token completo' : 'Ver token completo' }}
+        </ion-button>
+
+        <ion-button
+          expand="block"
+          fill="outline"
+          color="secondary"
+          (click)="copyAccessToken()"
+          aria-label="Copiar el token JWT al portapapeles">
+          <ion-icon name="copy-outline" slot="start" aria-hidden="true"></ion-icon>
+          Copiar token
+        </ion-button>
+      </div>
+
+      <!-- Visor bajo demanda del token JWT completo. -->
+      @if (isTokenVisible()) {
+        <section class="user-token-viewer app-surface-card" aria-label="Token JWT completo">
+          <span class="user-token-viewer__label">Bearer accessToken</span>
+          <code class="user-token-viewer__code">{{ session.accessToken }}</code>
+        </section>
+      }
+
+      <!-- ==============================================================
+           ESTADO DE LA BASE DE DATOS LOCAL (shopper_db)
+           ============================================================== -->
+      @if (databaseStats(); as dbStats) {
+        <h2 class="user-subtitle">Base de datos local ({{ dbStats.dbName }})</h2>
+        <ion-list class="shoper-session-list app-surface-card" aria-label="Estado de la base de datos local">
+          <ion-item lines="full">
+            <ion-icon name="server-outline" color="primary" slot="start" aria-hidden="true"></ion-icon>
+            <ion-label>Motor</ion-label>
+            <ion-note slot="end" class="shoper-mono-note">
+              {{ dbStats.engine === 'indexeddb' ? 'IndexedDB v' + dbStats.dbVersion : 'Preferences' }}
+            </ion-note>
+          </ion-item>
+          <ion-item lines="full">
+            <ion-icon name="receipt-outline" color="secondary" slot="start" aria-hidden="true"></ion-icon>
+            <ion-label>Productos / Pedidos</ion-label>
+            <ion-note slot="end">{{ dbStats.productsCount }} / {{ dbStats.ordersCount }}</ion-note>
+          </ion-item>
+          <ion-item lines="none">
+            <ion-icon name="person-outline" color="secondary" slot="start" aria-hidden="true"></ion-icon>
+            <ion-label>Usuarios / Carrito</ion-label>
+            <ion-note slot="end">{{ dbStats.usersCount }} / {{ dbStats.cartItemsCount }}</ion-note>
+          </ion-item>
+        </ion-list>
+      }
+
+      <!-- Nota de transparencia sobre persistencia local. -->
+      <p class="shoper-muted-text user-security-note">
+        El token JWT es demostrativo y se guarda en la base de datos local
+        <code>shopper_db</code> (IndexedDB, sin Keystore/Keychain). No se almacena
+        información financiera personal.
+      </p>
+
+      <!-- ==============================================================
+           CIERRE DE SESIÓN (disponible para Cliente y Tienda)
+           ============================================================== -->
+      <div class="user-logout-area">
+        <ion-button
+          id="user-logout-trigger"
+          expand="block"
+          fill="solid"
+          color="danger"
+          [strong]="true"
+          aria-label="Cerrar sesión en este dispositivo">
+          <ion-icon name="log-out-outline" slot="start" aria-hidden="true"></ion-icon>
+          Cerrar sesión
+        </ion-button>
+      </div>
+
+      <ion-alert
+        trigger="user-logout-trigger"
+        header="¿Cerrar sesión?"
+        message="Se eliminará el token JWT de este dispositivo. Los pedidos, el catálogo y el carrito guardados localmente se conservarán."
+        [buttons]="signOutConfirmationButtons">
+      </ion-alert>
+    } @else {
+      <div class="user-empty app-surface-card" role="status">
+        <p class="shoper-muted-text">No hay una sesión activa en este dispositivo.</p>
+        <ion-button fill="solid" color="primary" routerLink="/login">
+          Ir a iniciar sesión
+        </ion-button>
+      </div>
+    }
+  </div>
+</ion-content>

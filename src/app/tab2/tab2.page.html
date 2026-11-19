@@ -1,130 +1,185 @@
 <!--
-  @fileoverview Plantilla de la galería de fotografías (`Tab2Page`).
-
-  @description
-  Estructura Ionic con cabecera fija, contador accesible, estados diferenciados
-  en tarjetas elevadas (carga, error con reintento, galería vacía con botón CTA
-  central además del FAB flotante) y cuadrícula responsiva con animación GPU.
-
-  @author @ionic-ui-animator (Fase 4 / 5B / 7)
-  @phase SDD Fase 5B — Desarrollo de componentes y navegación
+  ===========================================================================
+  APP SHOPER — Vista Carrito de compras (`Tab2Page`)
+  ===========================================================================
+  Propósito : Listar las líneas del carrito con controles de cantidad
+              (+ / − / eliminar), mostrar el resumen reactivo de unidades y
+              total, y ejecutar el checkout demostrativo "Pagar ahora" que
+              crea la orden en estado Pagado y salta a `/tabs/tab3`.
+              Incluye el aviso de seguridad SEC-002 (sin PII financiera).
+  Fase SDD  : Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-019).
+  Autor     : John Fredy Marciales Morales
+  Fecha     : 2026-11-12
+  ===========================================================================
 -->
+<!-- `fullscreen` extiende el fondo bajo la cabecera persistente del contenedor. -->
+<ion-content [fullscreen]="true">
+  <div class="shoper-page-padding cart-page">
 
-<!-- Cabecera superior con título enfocable y contador de fotografías. -->
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title id="gallery-title" tabindex="-1">Galería</ion-title>
+    <!-- Encabezado de sección: receptor del foco accesible al entrar. -->
+    <h1 id="tab2-title" tabindex="-1" class="shoper-section-title cart-title">
+      Carrito de compras
+    </h1>
 
-    @if (photoCount() > 0) {
-      <!-- Chip contador con etiqueta completa para lectores TalkBack/VoiceOver. -->
-      <ion-chip
-        slot="end"
-        class="counter-chip"
-        color="primary"
-        [attr.aria-label]="photoCount() + ' fotografías en la galería'">
-        <ion-icon name="images" aria-hidden="true"></ion-icon>
-        <ion-label>{{ photoCount() }}</ion-label>
-      </ion-chip>
+    <!-- Región de estado accesible (ACC-001): anuncia cambios de cantidad,
+         eliminaciones y errores de stock sin desplazar el foco del usuario. -->
+    <div
+      class="cart-live-region shoper-live-banner"
+      role="status"
+      aria-live="polite"
+      [class.cart-live-region--error]="actionMessageType() === 'error'">
+      @if (actionMessage(); as message) {
+        <ion-icon
+          [name]="actionMessageType() === 'error' ? 'alert-circle-outline' : 'checkmark-circle-outline'"
+          aria-hidden="true">
+        </ion-icon>
+        <span>{{ message }}</span>
+      }
+    </div>
+
+    <!-- Spinner de hidratación del carrito persistido. -->
+    @if (isLoadingCart()) {
+      <div class="cart-loading" role="progressbar" aria-label="Cargando carrito de compras">
+        <ion-spinner name="crescent"></ion-spinner>
+      </div>
     }
-  </ion-toolbar>
-</ion-header>
 
-<!-- Lienzo desplazable de la galería. -->
-<ion-content [fullscreen]="true" class="gallery-content">
+    <!-- ================================================================
+         LISTADO DE LÍNEAS DEL CARRITO
+         ================================================================ -->
+    @if (!isLoadingCart() && cartItems().length > 0) {
+      <ion-list class="cart-list" aria-label="Productos en el carrito">
+        @for (item of cartItems(); track item.productId) {
+          <!-- Cada línea: miniatura, datos, stepper de cantidad y eliminar. -->
+          <ion-item class="cart-item" lines="full">
+            <!-- Miniatura del producto (40 px, esquina redondeada). -->
+            <ion-thumbnail slot="start">
+              <img
+                [src]="item.thumbnail"
+                [alt]="'Imagen de ' + item.title"
+                loading="lazy"
+                decoding="async" />
+            </ion-thumbnail>
 
-  <!-- Título grande colapsable en modo Cupertino (iOS). -->
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Galería</ion-title>
-    </ion-toolbar>
-  </ion-header>
+            <ion-label class="cart-item__label">
+              <!-- Nombre de la línea del carrito. -->
+              <span class="cart-item__title">{{ item.title }}</span>
+              <!-- Precio unitario e importe subtotal de la línea. -->
+              <span class="cart-item__price shoper-muted-text">
+                {{ item.price | currency: 'USD' : 'symbol' : '1.2-2' }} / ud ·
+                Subtotal:
+                <strong>{{ item.price * item.quantity | currency: 'USD' : 'symbol' : '1.2-2' }}</strong>
+              </span>
 
-  <!-- ESTADO 1 — CARGANDO -->
-  @if (loading()) {
-    <div class="state-wrapper" role="status" aria-live="polite">
-      <div class="state-card app-surface-card">
-        <ion-spinner name="crescent" color="primary" aria-hidden="true"></ion-spinner>
-        <p class="state-text">Cargando tu galería…</p>
-      </div>
-    </div>
-  }
+              <!-- Stepper de cantidad: botones ± con área táctil mínima de
+                   44x44 px garantizada por global.scss (`size="small"`). -->
+              <span class="cart-item__stepper">
+                <!-- Decrementa una unidad (o elimina la línea al llegar a 1). -->
+                <ion-button
+                  size="small"
+                  fill="outline"
+                  color="medium"
+                  (click)="decrementQuantity(item)"
+                  [attr.aria-label]="'Reducir cantidad de ' + item.title">
+                  <ion-icon name="remove-outline" aria-hidden="true"></ion-icon>
+                </ion-button>
+                <!-- Cantidad actual: se anuncia como texto vivo del stepper. -->
+                <span class="cart-item__quantity" aria-live="off">
+                  {{ item.quantity }}
+                </span>
+                <!-- Incrementa una unidad validando stock en el servicio. -->
+                <ion-button
+                  size="small"
+                  fill="outline"
+                  color="primary"
+                  (click)="incrementQuantity(item)"
+                  [attr.aria-label]="'Aumentar cantidad de ' + item.title">
+                  <ion-icon name="add-outline" aria-hidden="true"></ion-icon>
+                </ion-button>
+              </span>
+            </ion-label>
 
-  <!-- ESTADO 2 — ERROR DE LECTURA O PERMISOS -->
-  @if (!loading() && errorMessage(); as message) {
-    <div class="state-wrapper" role="alert">
-      <div class="state-card error-card app-surface-card">
-        <ion-icon name="alert-circle" color="danger" class="state-badge-icon" aria-hidden="true"></ion-icon>
-        <p class="state-text">{{ message }}</p>
-        <ion-button fill="solid" color="danger" (click)="retryLoad()">
-          Reintentar carga
-        </ion-button>
-      </div>
-    </div>
-  }
-
-  <!-- ESTADO 3 — GALERÍA VACÍA CON BOTÓN PRIMARIO VISIBLE -->
-  @if (!loading() && !errorMessage() && isEmpty()) {
-    <div class="state-wrapper" aria-live="polite">
-      <div class="state-card app-surface-card">
-        <div class="empty-badge" aria-hidden="true">
-          <ion-icon name="images" class="empty-icon"></ion-icon>
-        </div>
-        <h2 class="empty-title">Tu galería está vacía</h2>
-        <p class="state-text">
-          Captura tu primera fotografía con la cámara del dispositivo o selecciónala desde tu equipo.
-        </p>
-        <!-- Botón primario explícito además del FAB para dejar evidente la acción principal. -->
-        <ion-button
-          fill="solid"
-          color="primary"
-          [strong]="true"
-          (click)="takePhoto()">
-          <ion-icon name="camera" slot="start" aria-hidden="true"></ion-icon>
-          Tomar primera fotografía
-        </ion-button>
-      </div>
-    </div>
-  }
-
-  <!-- ESTADO 4 — CUADRÍCULA DE FOTOGRAFÍAS -->
-  @if (!loading() && !isEmpty()) {
-    <ion-grid class="photo-grid" [fixed]="true">
-      <ion-row>
-        @for (photo of photos(); track photo.id) {
-          <ion-col size="4" sizeMd="3" sizeLg="2">
-            <figure
-              class="photo-cell"
-              [style.animation-delay.ms]="staggerDelay($index)">
-              <ion-img
-                class="photo-img"
-                [src]="photo.webviewPath"
-                [alt]="'Fotografía ' + ($index + 1) + ' de ' + photoCount() + ', capturada el ' + formatDate(photo.capturedAt)">
-              </ion-img>
-            </figure>
-          </ion-col>
+            <!-- Eliminación directa de la línea completa (slot final). -->
+            <ion-button
+              slot="end"
+              size="small"
+              fill="clear"
+              color="danger"
+              (click)="removeItem(item)"
+              [attr.aria-label]="'Eliminar ' + item.title + ' del carrito'">
+              <ion-icon name="trash-outline" aria-hidden="true"></ion-icon>
+            </ion-button>
+          </ion-item>
         }
-      </ion-row>
-    </ion-grid>
+      </ion-list>
+
+      <!-- Aviso de seguridad del checkout (SEC-002): el pago es simulado y
+           no existe formulario financiero en ninguna parte del flujo. La
+           presentación vive en `.shoper-security-notice` (global.scss §12). -->
+      <aside class="shoper-security-notice" aria-label="Aviso de seguridad del pago">
+        <ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon>
+        <p>
+          Pago 100 % demostrativo: no se solicita ni almacena información
+          financiera personal (tarjetas, cuentas o PII). La orden se crea en
+          estado «Pagado» sobre almacenamiento local.
+        </p>
+      </aside>
+    } @else if (!isLoadingCart()) {
+      <!-- Estado vacío: carrito sin líneas, con acceso directo al catálogo. -->
+      <div class="cart-empty app-surface-card" role="status">
+        <ion-icon name="cart-outline" class="cart-empty__icon" aria-hidden="true"></ion-icon>
+        <p class="shoper-muted-text">Tu carrito está vacío.</p>
+        <!-- Atajo a la pestaña de catálogo para empezar a comprar. -->
+        <ion-button
+          fill="outline"
+          color="primary"
+          routerLink="/tabs/tab1"
+          aria-label="Ir al catálogo de productos">
+          Explorar el catálogo
+        </ion-button>
+      </div>
+    }
+  </div>
+
+  <!-- ==============================================================
+       BARRA INFERIOR ADHESIVA: resumen de totales + acción de pago.
+       `.shoper-sticky-footer` (global.scss) ya suma el safe-area inset.
+       ============================================================== -->
+  @if (!isLoadingCart() && cartItems().length > 0) {
+    <div class="shoper-sticky-footer cart-footer">
+      <!-- Resumen reactivo: unidades acumuladas e importe total. Las clases
+           `shoper-cart-value-transition` aplican una transición CSS suave
+           (transform/color, 160 ms, ease-out) definida en global.scss §14.3
+           para dar retroalimentación visual cuando cambian cantidades o total. -->
+      <div class="cart-summary" aria-live="polite" aria-atomic="true">
+        <!-- Contador de unidades con transición de valor para micro-feedback
+             visual en cada actualización del carrito. -->
+        <span class="cart-summary__units shoper-muted-text shoper-cart-value-transition">
+          {{ totalUnits() }} {{ totalUnits() === 1 ? 'unidad' : 'unidades' }}
+        </span>
+        <!-- Importe total destacado con la misma transición suave de valor,
+             reforzando el recálculo del pago sin movimiento de layout. -->
+        <span class="cart-summary__total shoper-price shoper-cart-value-transition">
+          {{ totalAmount() | currency: 'USD' : 'symbol' : '1.2-2' }}
+        </span>
+      </div>
+
+      <!-- Acción principal de checkout: se bloquea durante la creación de la
+           orden y muestra spinner como indicador de progreso (WCAG 2.2.1). -->
+      <ion-button
+        expand="block"
+        fill="solid"
+        color="primary"
+        [disabled]="isCheckingOut()"
+        (click)="checkout()"
+        aria-label="Pagar ahora y crear el pedido">
+        @if (isCheckingOut()) {
+          <ion-spinner name="crescent" aria-hidden="true"></ion-spinner>
+        } @else {
+          <ion-icon name="card-outline" slot="start" aria-hidden="true"></ion-icon>
+          Pagar ahora
+        }
+      </ion-button>
+    </div>
   }
-
-  <!-- BOTÓN FLOTANTE DE CÁMARA (FAB) -->
-  <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="camera-fab">
-    <ion-fab-button
-      color="primary"
-      (click)="takePhoto()"
-      [disabled]="loading()"
-      aria-label="Tomar una fotografía y añadirla a la galería">
-      <ion-icon name="camera" aria-hidden="true"></ion-icon>
-    </ion-fab-button>
-  </ion-fab>
-
-  <!-- NOTIFICACIÓN TOAST DE CONFIRMACIÓN -->
-  <ion-toast
-    [isOpen]="toastOpen()"
-    [message]="toastMessage()"
-    [duration]="2500"
-    position="bottom"
-    (didDismiss)="dismissToast()">
-  </ion-toast>
-
 </ion-content>

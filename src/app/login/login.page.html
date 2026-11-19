@@ -1,133 +1,189 @@
 <!--
-  @fileoverview Plantilla de la pantalla de inicio de sesión (`LoginPage`).
-
-  @description
-  Presenta una tarjeta elevada de alto contraste sobre el lienzo teñido de la
-  aplicación, con cabecera degradada de marca, controles `ion-input` en modo
-  `outline` (sintaxis moderna Ionic 9 sin `autocorrect="off"`), selector para
-  mostrar/ocultar contraseña, botón primario sólido «Iniciar sesión» claramente
-  diferenciado y botón secundario para autocompletar la cuenta de demostración.
-
-  @author @ionic-ui-animator (Fase 5B — Desarrollo UI)
-  @phase SDD Fase 5B — Desarrollo de componentes y navegación
+  ===========================================================================
+  APP SHOPER — Vista de autenticación JWT (`LoginPage`)
+  ===========================================================================
+  Propósito : Formulario reactivo de inicio de sesión con selector de rol
+              inicial (Cliente | Vendedor), autocompletado rápido de
+              credenciales demostrativas, aviso transparente de seguridad
+              (SEC-002) y soporte de acceso en modo offline.
+  Fase SDD  : Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-016).
+  Autor     : John Fredy Marciales Morales
+  Fecha     : 2026-11-12
+  ===========================================================================
 -->
-
-<!-- Lienzo principal desplazable a pantalla completa con fondo de contraste. -->
+<!-- `fullscreen` extiende el contenido bajo la barra de estado; las safe
+     areas se compensan en `.login-wrapper` con env(safe-area-inset-*). -->
 <ion-content [fullscreen]="true" class="login-content">
-
-  <!-- Franja decorativa superior con degradado de marca para dar profundidad visual. -->
+  <!-- Franja decorativa superior con el gradiente de marca; se oculta a los
+       lectores de pantalla porque no aporta información (aria-hidden). -->
   <div class="login-backdrop" aria-hidden="true"></div>
 
-  <!-- Contenedor centrado adaptable a móvil y tablet respetando safe-areas. -->
   <div class="login-wrapper">
-
-    <!-- Tarjeta principal elevada que agrupa identidad visual, formulario y ayuda demo. -->
-    <section class="login-card app-surface-card">
-
-      <!-- Cabecera de marca: insignia de cámara, título enfocable y subtítulo guía. -->
+    <!-- Tarjeta elevada que concentra identidad, formulario y avisos. -->
+    <section class="login-card app-surface-card" aria-labelledby="login-title">
+      <!-- Bloque de identidad visual: insignia, título y subtítulo de marca. -->
       <header class="login-header">
-        <!-- Insignia circular con degradado e icono decorativo excluido de lectores. -->
+        <!-- Insignia con el icono de tienda que representa el dominio comercial. -->
         <div class="login-logo-badge" aria-hidden="true">
-          <ion-icon name="camera" class="login-logo"></ion-icon>
+          <ion-icon name="storefront-outline" class="login-logo"></ion-icon>
         </div>
-        <!-- Encabezado principal enfocable por `announceScreen` al entrar en la ruta. -->
-        <h1 id="login-title" tabindex="-1" class="login-title">Galería de Fotos</h1>
-        <!-- Subtítulo explicativo con contraste legible. -->
-        <p class="login-subtitle">Accede a tu espacio privado de capturas</p>
+        <!-- Título principal: recibe el foco programático al abrir la vista
+             (tabindex="-1") para que TalkBack/VoiceOver anuncien la página. -->
+        <h1 id="login-title" tabindex="-1" class="login-title">App Shoper</h1>
+        <p class="login-subtitle">Tienda local-first con roles Cliente y Vendedor</p>
       </header>
 
-      <!-- Formulario reactivo conectado a `onSubmit()` al pulsar Enter o el botón principal. -->
+      <!-- Formulario reactivo: username + password + rol inicial. `novalidate`
+           desactiva la validación nativa del navegador porque Angular gestiona
+           los mensajes de error con sus propios validadores. -->
       <form
         class="login-form"
-        [formGroup]="form"
-        (ngSubmit)="onSubmit()"
+        [formGroup]="credentialsForm"
+        (ngSubmit)="submitLoginForm()"
         novalidate
         aria-labelledby="login-title">
 
-        <!-- Campo de correo electrónico con etiqueta apilada siempre visible y borde nítido. -->
-        <ion-input
-          class="login-field"
-          formControlName="email"
-          label="Correo electrónico"
-          labelPlacement="stacked"
-          placeholder="estudiante@example.com"
-          fill="outline"
-          type="email"
-          inputmode="email"
-          autocomplete="email"
-          autocapitalize="none"
-          enterkeyhint="next"
-          [errorText]="fieldError('email')"
-          helperText="Ingresa tu correo institucional o de prueba.">
-        </ion-input>
+        <!-- Selector de rol de ingreso (REQ-003): define qué vista única se
+             habilitará tras autenticarse (Cliente o Tienda/Vendedor). -->
+        <ion-segment
+          formControlName="role"
+          class="login-role-segment"
+          aria-label="Selecciona tu rol inicial: Cliente o Tienda">
+          <ion-segment-button value="customer">
+            <ion-icon name="person-outline" slot="start" aria-hidden="true"></ion-icon>
+            <ion-label>Cliente</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="seller">
+            <ion-icon name="briefcase-outline" slot="start" aria-hidden="true"></ion-icon>
+            <ion-label>Tienda</ion-label>
+          </ion-segment-button>
+        </ion-segment>
 
-        <!-- Campo de contraseña con botón integrado para alternar visibilidad. -->
-        <ion-input
-          class="login-field"
-          formControlName="password"
-          label="Contraseña"
-          labelPlacement="stacked"
-          placeholder="Mínimo 8 caracteres"
-          fill="outline"
-          type="password"
-          autocomplete="current-password"
-          enterkeyhint="done"
-          [errorText]="fieldError('password')"
-          helperText="Mínimo 8 caracteres.">
-          <!-- Acción nativa de Ionic 9 para mostrar u ocultar la contraseña escrita. -->
-          <ion-input-password-toggle slot="end"></ion-input-password-toggle>
-        </ion-input>
+        <!-- Campo de nombre de usuario. -->
+        <label class="shoper-field">
+          <span class="shoper-field__label">Nombre de usuario</span>
+          <ion-input
+            class="shoper-input"
+            formControlName="username"
+            aria-label="Nombre de usuario"
+            placeholder="p. ej. emilys"
+            fill="outline"
+            type="text"
+            autocomplete="username"
+            autocapitalize="none"
+            [autocorrect]="false"
+            enterkeyhint="next"
+            [errorText]="getFieldValidationMessage('username')"
+            helperText="Usuario de la API pública DummyJSON.">
+          </ion-input>
+        </label>
 
-        <!-- Alerta accesible ante credenciales erróneas o problemas de conexión. -->
-        @if (errorMessage(); as message) {
+        <!-- Campo de contraseña con botón nativo para alternar visibilidad. -->
+        <label class="shoper-field">
+          <span class="shoper-field__label">Contraseña</span>
+          <ion-input
+            class="shoper-input"
+            formControlName="password"
+            aria-label="Contraseña"
+            placeholder="Mínimo 4 caracteres"
+            fill="outline"
+            type="password"
+            autocomplete="current-password"
+            enterkeyhint="done"
+            [errorText]="getFieldValidationMessage('password')"
+            helperText="Contraseña de la cuenta demostrativa.">
+            <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+          </ion-input>
+        </label>
+
+        <!-- Dos botones distintos con los datos de inicio de cada cuenta
+             (Cliente vs. Tienda/Vendedor) para rellenar y acceder al rol elegido. -->
+        <fieldset class="demo-panel" aria-live="polite">
+          <legend class="demo-legend">Acceso rápido con datos de cada rol</legend>
+          <div class="demo-buttons-row">
+            <ion-button
+              class="demo-button"
+              type="button"
+              fill="outline"
+              color="primary"
+              expand="block"
+              (click)="fillDemoCredentials('customer')"
+              aria-label="Autocompletar credenciales demostrativas de Cliente">
+              <div class="demo-button__content">
+                <span class="demo-button__title">
+                  <ion-icon name="person-outline" aria-hidden="true"></ion-icon>
+                  Cliente
+                </span>
+                <span class="demo-button__meta">
+                  {{ demoCredentials.customer.username }} / {{ demoCredentials.customer.password }}
+                </span>
+              </div>
+            </ion-button>
+
+            <ion-button
+              class="demo-button"
+              type="button"
+              fill="outline"
+              color="secondary"
+              expand="block"
+              (click)="fillDemoCredentials('seller')"
+              aria-label="Autocompletar credenciales demostrativas de Tienda">
+              <div class="demo-button__content">
+                <span class="demo-button__title">
+                  <ion-icon name="briefcase-outline" aria-hidden="true"></ion-icon>
+                  Tienda
+                </span>
+                <span class="demo-button__meta">
+                  {{ demoCredentials.seller.username }} / {{ demoCredentials.seller.password }}
+                </span>
+              </div>
+            </ion-button>
+          </div>
+        </fieldset>
+
+        <!-- Región de error inmediato: `role="alert"` + `aria-live="assertive"`
+             interrumpe al lector de pantalla ante fallos de credenciales o red. -->
+        @if (authenticationErrorMessage(); as errorMessage) {
           <div class="login-error" role="alert" aria-live="assertive">
             <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
-            <p class="login-error-text">{{ message }}</p>
+            <p>{{ errorMessage }}</p>
           </div>
         }
 
-        <!-- Botón primario sólido de alto contraste para enviar el formulario de acceso. -->
+        <!-- Acción principal de envío: se deshabilita mientras hay petición en
+             curso y muestra un spinner como indicador de progreso (WCAG 2.2.1). -->
         <ion-button
           class="submit-button"
           expand="block"
           fill="solid"
           color="primary"
-          [strong]="true"
           type="submit"
-          [disabled]="loading()"
-          aria-label="Iniciar sesión">
-          @if (loading()) {
-            <!-- Spinner visible mientras se valida y persiste el token JWT. -->
+          [disabled]="isSubmittingCredentials()"
+          aria-label="Iniciar sesión en App Shoper">
+          @if (isSubmittingCredentials()) {
             <ion-spinner name="crescent" aria-hidden="true"></ion-spinner>
           } @else {
             <ion-icon name="log-in-outline" slot="start" aria-hidden="true"></ion-icon>
             Iniciar sesión
           }
         </ion-button>
-
-        <!-- Panel de demostración con botón secundario claro para cargar las credenciales en un toque. -->
-        @if (showDemoHint) {
-          <div class="demo-panel" aria-live="polite">
-            <p class="demo-hint">
-              Cuenta demo: <strong>{{ demoCredentials.email }}</strong> ·
-              <strong>{{ demoCredentials.password }}</strong>
-            </p>
-            <ion-button
-              class="demo-button"
-              expand="block"
-              fill="outline"
-              color="secondary"
-              type="button"
-              (click)="fillDemoCredentials()">
-              <ion-icon name="sparkles-outline" slot="start" aria-hidden="true"></ion-icon>
-              Usar credenciales de prueba
-            </ion-button>
-          </div>
-        }
       </form>
 
+      <!-- Aviso transparente de seguridad (SEC-002): informa sin ambigüedad que
+           el token es demostrativo, el almacenamiento no está cifrado por
+           hardware y no se gestiona PII financiera en ninguna pantalla. La
+           presentación vive en `.shoper-security-notice` (global.scss §12). -->
+      <aside class="shoper-security-notice" aria-label="Aviso de seguridad de la demostración">
+        <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
+        <p>
+          <strong>Transparencia de seguridad:</strong> el token JWT es demostrativo
+          (API pública DummyJSON) y se guarda en la base de datos local
+          <code>shopper_db</code> (IndexedDB), que no es almacenamiento cifrado
+          por hardware (Keystore/Keychain). La app no solicita ni almacena datos
+          financieros personales (PII). Si la red falla, la sesión continúa en modo
+          offline con un token local validado contra la tabla de usuarios.
+        </p>
+      </aside>
     </section>
-
   </div>
-
 </ion-content>

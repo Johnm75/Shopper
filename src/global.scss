@@ -1,78 +1,110 @@
-/*
- * @fileoverview Hoja de estilos global y sistema visual base de `photo-gallery`.
- *
- * @description
- * Importa las hojas estructurales de Ionic 9, activa la paleta oscura del
- * sistema operativo y establece dos pilares transversales:
- * 1. Correcciones `mobile-native`: fin del tap-highlight, alturas `100dvh`,
- *    bloqueo de overscroll, `touch-action: manipulation` e inputs ≥ 16 px.
- * 2. Claridad visual de controles interactivos: bordes nítidos, sombras de
- *    elevación y siluetas inequívocas en `ion-button`, `ion-input`,
- *    `ion-toolbar` e `ion-tab-bar` para que cada botón se distinga claramente.
- *
- * @author @ionic-ui-animator (Fase 4 — Diseño Ionic y UX móvil nativa)
- * @phase SDD Fase 4 — Diseño
+/**
+ * ===========================================================================
+ * APP SHOPER (com.abp.appshoper) — HOJA DE ESTILOS GLOBALES
+ * ===========================================================================
+ * Propósito : Concentrar (1) las reglas de experiencia móvil nativa
+ *             (100dvh, safe areas, tap-delay, objetivos táctiles 44x44 px,
+ *             hover condicional) y (2) las clases utilitarias compartidas por
+ *             todas las vistas: insignias de los 4 estados logísticos,
+ *             tarjetas de producto y línea de tiempo de seguimiento.
+ * Fase SDD  : Fase 4 — Diseño Ionic, Sistema de Temas, Safe Areas y UX Nativa
+ *             (TASK-011 del PLAN.md).
+ * Autor     : John Fredy Marciales Morales
+ * Fecha     : 2026-11-12
+ * ---------------------------------------------------------------------------
+ * JUSTIFICACIÓN DEL PRESUPUESTO CSS (CON-002 / RISK-003):
+ *   Angular aplica el presupuesto `anyComponentStyle <= 2.00 kB` a CADA
+ *   archivo .scss de componente/página. Al vivir aquí las insignias, tarjetas
+ *   y línea de tiempo, las páginas (tab1/tab2/tab3) solo declaran ajustes
+ *   mínimos propios y nunca superan el límite.
+ * ===========================================================================
  */
 
-/* CSS núcleo obligatorio para hidratar y posicionar los Web Components de Ionic. */
-@import "@ionic/angular/css/core.css";
+/* ==========================================================================
+   1. NÚCLEO CSS DE IONIC FRAMEWORK
+   Cada importación activa una capa del sistema de diseño oficial:
+   ========================================================================== */
+@import "@ionic/angular/css/core.css";            /* variables base y utilidades internas de Ionic */
+@import "@ionic/angular/css/normalize.css";       /* normalización entre navegadores/WebView */
+@import "@ionic/angular/css/structure.css";       /* ion-app, ion-content, ion-header: layout base */
+@import "@ionic/angular/css/typography.css";      /* jerarquía tipográfica del framework */
+@import "@ionic/angular/css/display.css";         /* utilidades ion-hide-* por breakpoint */
+@import "@ionic/angular/css/padding.css";         /* clases ion-padding-* predefinidas */
+@import "@ionic/angular/css/float-elements.css";  /* utilidades de flotación legacy */
+@import "@ionic/angular/css/text-alignment.css";  /* clases ion-text-center/start/end */
+@import "@ionic/angular/css/text-transformation.css"; /* clases ion-text-uppercase, etc. */
+@import "@ionic/angular/css/flex-utils.css";      /* utilidades flex del grid Ionic */
+@import "@ionic/angular/css/palettes/dark.system.css"; /* paleta oscura automática (prefers-color-scheme) */
 
-/* Normalización tipográfica y estructural base para aplicaciones Ionic. */
-@import "@ionic/angular/css/normalize.css";
-@import "@ionic/angular/css/structure.css";
-@import "@ionic/angular/css/typography.css";
-@import "@ionic/angular/css/display.css";
+/* ==========================================================================
+   2. AJUSTES BASE DEL WEBVIEW — UX NATIVA (skill mobile-native)
+   ========================================================================== */
 
-/* Utilidades opcionales de espaciado, alineación y distribución flexbox. */
-@import "@ionic/angular/css/padding.css";
-@import "@ionic/angular/css/float-elements.css";
-@import "@ionic/angular/css/text-alignment.css";
-@import "@ionic/angular/css/text-transformation.css";
-@import "@ionic/angular/css/flex-utils.css";
-
-/* Sincronización automática con el modo oscuro del sistema operativo. */
-@import "@ionic/angular/css/palettes/dark.system.css";
-
-/* ═════════════════════════════════════════════════════════════════════════
-   1. BASE MÓVIL NATIVA (skill `mobile-native`)
-   ═════════════════════════════════════════════════════════════════════════ */
-
+/* Documento raíz:
+   - `-webkit-tap-highlight-color: transparent` elimina el destello gris/azul
+     que delata "página web" al tocar; el feedback de pulsación se redefine
+     con estados :active propios más abajo.
+   - `-webkit-text-size-adjust: 100%` impide que el WebView infle la fuente
+     al rotar a horizontal (text inflation de Android).
+   - `overscroll-behavior: none` desactiva el pull-to-refresh nativo del
+     navegador: el refresco de datos lo controla la app en ionViewWillEnter. */
 html {
-  /* Suprime el destello rectangular por defecto de WebViews móviles al tocar. */
   -webkit-tap-highlight-color: transparent;
-  /* Evita inflado involuntario de fuentes al rotar el teléfono. */
   -webkit-text-size-adjust: 100%;
-  /* Impide que el arrastre vertical dispare recarga accidental del documento. */
   overscroll-behavior: none;
 }
 
+/* Cuerpo del documento:
+   - mismo control de overscroll que html (doble seguro en iOS Safari);
+   - pila tipográfica del SISTEMA (-apple-system en iOS, Roboto en Android):
+     la app hereda la fuente nativa del dispositivo sin descargar webfonts. */
 body {
-  /* Mantiene el rebote confinado al interior de `ion-content`. */
   overscroll-behavior: none;
-  /* Tipografía limpia de sistema en Android (Roboto) e iOS (SF Pro). */
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ion-text-color);
+  -webkit-font-smoothing: antialiased;
 }
 
+/* Contenedor raíz de Ionic:
+   - `min-height: 100dvh` (unidad de viewport DINÁMICA) para que la app ocupe
+     exactamente el área visible real cuando las barras del navegador móvil se
+     muestran u ocultan; la línea previa con 100vh es el respaldo para
+     navegadores antiguos que no conocen dvh.
+   - El fondo sigue el token de superficie, distinto en claro/oscuro. */
 ion-app {
-  /* Usa `100dvh` para ajustarse al alto real visible con teclado o barras del sistema. */
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100vh;   /* respaldo para WebView antiguos */
+  min-height: 100dvh;  /* valor efectivo: viewport dinámico */
   background: var(--ion-background-color);
 }
 
-/* Garantiza que todas las vistas hereden el lienzo teñido que contrasta con las tarjetas. */
+/* Todo el contenido desplazable vive en ion-content con el fondo del lienzo. */
 ion-content {
   --background: var(--ion-background-color);
 }
 
-/* Evita zoom forzado en Safari iOS manteniendo al menos 16 px en entradas nativas. */
+/* Entradas de texto a 16 px mínimo: por debajo de ese tamaño iOS Safari hace
+   zoom automático al enfocar el campo y no lo revierte al perder el foco
+   (WCAG — nunca se desactiva el zoom del usuario; se corrige la causa). */
 input,
 textarea,
 select {
   font-size: 16px;
 }
 
-/* Elimina retardo táctil de 300 ms e impide selección accidental de texto en botones. */
+/* ==========================================================================
+   3. INTERACCIÓN TÁCTIL SIN RETARDOS NI EFECTOS DE ESCRITORIO
+   ========================================================================== */
+
+/* Todos los elementos pulsables de la app:
+   - `touch-action: manipulation` suprime la espera de ~300 ms del doble-toque
+     para zoom: el evento click se dispara en cuanto el dedo se levanta.
+   - `user-select: none` evita que un mantener-presionado seleccione la
+     etiqueta del botón (el texto de CONTENIDO sigue siendo seleccionable:
+     esta regla solo toca controles, nunca el body).
+   - `-webkit-touch-callout: none` bloquea la llamada contextual de iOS al
+     mantener presionado un control. */
 button,
 a,
 [role="button"],
@@ -86,64 +118,1205 @@ ion-chip {
   -webkit-touch-callout: none;
 }
 
-/* ═════════════════════════════════════════════════════════════════════════
-   2. SISTEMA DE CONTROLES VISIBLES Y JERARQUÍA DE SUPERFICIES
-   ═════════════════════════════════════════════════════════════════════════ */
+/* ==========================================================================
+   4. OBJETIVOS TÁCTILES MÍNIMOS (ACC-001 / WCAG 2.5.8 Target Size)
+   ========================================================================== */
 
-/* Todos los botones Ionic presentan forma redondeada moderna, peso legible y altura táctil ≥ 48 px. */
+/* Botones Ionic: mínimo 48 px de alto (por encima del umbral 44x44 px que
+   exige la rúbrica) + proporciones y tipografía uniformes en toda la app. */
 ion-button {
-  --border-radius: 14px;
+  --border-radius: var(--shoper-radius-control); /* 14px definido en variables.scss */
   --padding-top: 13px;
   --padding-bottom: 13px;
   --padding-start: 18px;
   --padding-end: 18px;
-  font-weight: 600;
-  font-size: 0.95rem;
-  letter-spacing: 0.01em;
-  text-transform: none;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.005em;
+  text-transform: none; /* se respeta la capitalización del español ("Pagar ahora") */
   min-height: 48px;
 }
 
-/* Los botones sólidos llevan sombra cromática para percibirse claramente clicables. */
+/* Los botones pequeños (controles +/- de cantidad, iconos de acción en las
+   listas del vendedor) nunca bajan de 44x44 px aunque su tamaño visual sea
+   compacto: se amplía el área de impacto sin cambiar el diseño. */
+ion-button[size="small"] {
+  --padding-top: 10px;
+  --padding-bottom: 10px;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Botón flotante de acción (FAB): 56 px garantiza holgura frente al mínimo
+   de 44 px y coincide con la guía de Material Design. */
+ion-fab-button {
+  width: 56px;
+  height: 56px;
+}
+
+/* Clase utilitaria para cualquier control personalizado (steppers de carrito,
+   accesos rápidos de login): fuerza el área táctil mínima de 44x44 px
+   centrando el contenido con flexbox. */
+.shoper-touch-target {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* ==========================================================================
+   5. ACABADO VISUAL DE CONTROLES IONIC (jerarquía consistente)
+   ========================================================================== */
+
+/* Botones sólidos: sombra de marca definida en variables.scss. */
 ion-button:not([fill="outline"]):not([fill="clear"]) {
   --box-shadow: var(--app-btn-shadow);
 }
 
-/* Los botones `outline` muestran borde de 1.5 px y fondo sutil para nunca confundirse con texto plano. */
+/* Botones de contorno: borde reforzado y fondo primario al 6% para que el
+   control sea reconocible sin competir con el botón principal. */
 ion-button[fill="outline"] {
   --border-width: 1.5px;
   --background: rgba(var(--ion-color-primary-rgb), 0.06);
 }
 
-/* Barra superior con línea divisoria nítida respecto al lienzo de contenido. */
+/* Cabeceras: filete inferior de 1 px con el borde neutro del sistema de
+   superficies; separa la toolbar del contenido sin sombras agresivas. */
 ion-header ion-toolbar {
   --border-width: 0 0 1px 0;
   --border-color: var(--app-surface-border);
 }
 
-/* Título principal con mayor presencia tipográfica. */
+/* Títulos de toolbar: peso 800 y tamaño claro para apps nativas modernas. */
 ion-toolbar ion-title {
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
-/* Barra inferior de pestañas elevada con borde superior claro y etiquetas marcadas. */
+/* Barra de pestañas inferior: borde superior + sombra invertida suave y 64 px
+   de alto para que cada pestaña supere el objetivo táctil mínimo. Ionic ya
+   añade por sí mismo el `env(safe-area-inset-bottom)` bajo la barra en
+   dispositivos con navegación por gestos. */
 ion-tab-bar {
   border-top: 1px solid var(--app-surface-border);
   box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.06);
-  padding-top: 4px;
-  min-height: 60px;
+  padding-top: 6px;
+  padding-bottom: 4px;
+  min-height: 64px;
 }
 
-/* Pestaña activa con peso seminegrita para reforzar orientación del usuario. */
+ion-tab-button {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+ion-tab-button ion-icon {
+  font-size: 23px;
+}
+
+/* Pestaña seleccionada en negrita: refuerzo no-cromático del estado activo
+   (también perceptible en modo daltónico — WCAG 1.4.1 Use of Color). */
 ion-tab-button.tab-selected {
-  font-weight: 700;
+  font-weight: 800;
 }
 
-/* Tarjeta elevada reutilizable por Login, Inicio, Galería vacía y Cuenta. */
+/* Tarjeta de superficie genérica heredada de las vistas existentes: fondo,
+   borde, radio y elevación gobernados por los tokens de variables.scss. */
 .app-surface-card {
   background: var(--app-surface-bg);
   border: 1px solid var(--app-surface-border);
-  border-radius: 22px;
+  border-radius: var(--shoper-radius-card);
   box-shadow: var(--app-surface-shadow);
+}
+
+/* ==========================================================================
+   5B. CAMPOS DE FORMULARIO MODERNOS Y LEGIBLES (.shoper-field / .shoper-input)
+   Sustituyen los ion-item + labelPlacement="stacked" con fill="outline" que
+   recortan la etiqueta superior; garantizan etiquetas nítidas, sin cortes y
+   con contraste completo en claro y oscuro.
+   ========================================================================== */
+.shoper-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+}
+
+.shoper-field__label {
+  display: block;
+  font-size: 0.94rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ion-text-color);
+  letter-spacing: -0.005em;
+}
+
+ion-input.shoper-input {
+  --background: var(--app-surface-muted);
+  --border-color: var(--app-surface-border);
+  --border-radius: var(--shoper-radius-control);
+  --border-width: 1.5px;
+  --highlight-color-focused: var(--ion-color-primary);
+  --highlight-color-valid: var(--shoper-status-paid);
+  --highlight-color-invalid: var(--ion-color-danger);
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-top: 13px;
+  --padding-bottom: 13px;
+  --placeholder-color: var(--ion-color-medium);
+  --placeholder-opacity: 0.85;
+  --color: var(--ion-text-color);
+  font-size: 1rem;
+  font-weight: 500;
+  min-height: 52px;
+}
+
+ion-input.shoper-input .input-bottom {
+  padding-inline-start: 4px;
+  padding-top: 6px;
+}
+
+ion-input.shoper-input .helper-text,
+ion-input.shoper-input .error-text {
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+ion-input.shoper-input .error-text {
+  font-weight: 600;
+}
+
+/* Banner de estado vivo reutilizable en Tab1 / Tab2 / Tab3 cuando hay mensaje. */
+.shoper-live-banner:not(:empty) {
+  padding: 12px 14px;
+  border-radius: var(--shoper-radius-control);
+  background: var(--shoper-status-paid-bg);
+  border: 1px solid rgba(var(--shoper-status-paid-rgb), 0.35);
+}
+
+.shoper-live-banner.catalog-live-region--error:not(:empty),
+.shoper-live-banner.cart-live-region--error:not(:empty),
+.shoper-live-banner.orders-live-region--error:not(:empty) {
+  background: rgba(var(--ion-color-danger-rgb), 0.1);
+  border-color: rgba(var(--ion-color-danger-rgb), 0.35);
+}
+
+ion-segment.login-role-segment {
+  --background: var(--app-surface-muted);
+  border-radius: var(--shoper-radius-control);
+  padding: 4px;
+}
+
+ion-segment.login-role-segment ion-segment-button {
+  min-height: 46px;
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   6. CLASES UTILITARIAS DE LAYOUT Y SAFE AREAS
+   (requieren `viewport-fit=cover` declarado en index.html; sin ese meta-tag
+   todas las funciones env() valdrían 0px)
+   ========================================================================== */
+
+/* Envoltura para elementos FIJOS o adhesivos propios de la app (barras de
+   checkout pegadas abajo, cabeceras hero del login): añade el acolchado exacto
+   del notch/barra de estado arriba y de la barra de gestos abajo. Los valores
+   env() llevan respaldo 0px para navegadores de escritorio sin inset. */
+.shoper-safe-area {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Acolchado estándar de página dentro de ion-content: ritmo horizontal de
+   16 px y aire inferior de 24 px + inset seguro, de modo que el último
+   elemento nunca quede pegado al borde ni oculto por la barra de gestos. */
+.shoper-page-padding {
+  padding: var(--shoper-space-md) var(--shoper-space-md)
+    calc(var(--shoper-space-lg) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Barra de acción inferior adhesiva (p. ej. "Pagar ahora" del carrito):
+   se ancla al pie del contenido y suma el inset seguro al acolchado para
+   no invadir la zona del gesto de inicio. */
+.shoper-sticky-footer {
+  position: sticky;
+  bottom: 0;
+  padding: var(--shoper-space-md) var(--shoper-space-md)
+    calc(var(--shoper-space-md) + env(safe-area-inset-bottom, 0px));
+  background: var(--app-surface-bg);
+  border-top: 1px solid var(--app-surface-border);
+}
+
+/* Utilidad de "solo lector de pantalla" (ACC-001 / WCAG 4.1.3 Status Messages):
+   oculta VISUALMENTE el elemento sin `display: none` (que también lo oculta a
+   TalkBack/VoiceOver), de modo que las regiones `aria-live` sigan anunciando
+   los cambios de rol, de carrito y de estado logístico. Técnica estándar de
+   recorte a 1 px con `clip-path` y desbordamiento oculto. */
+.shoper-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   7. TIPOGRAFÍA Y ESPACIADO COMPARTIDOS
+   ========================================================================== */
+
+/* Título de sección dentro de una página (p. ej. "Catálogo", "Mis compras"). */
+.shoper-section-title {
+  margin: 0 0 var(--shoper-space-xs);
+  font-size: 1.42rem;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--ion-text-color);
+}
+
+/* Texto de apoyo/metadatos (fechas, categorías, avisos de seguridad).
+   El token --ion-color-medium supera 4.5:1 en ambos modos (ver variables). */
+.shoper-muted-text {
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--ion-color-medium);
+}
+
+/* Precio destacado en tarjetas y resúmenes de carrito: peso 800 y dígitos
+   tabulares para jerarquizar la información comercial. */
+.shoper-price {
+  font-size: var(--shoper-font-price);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--ion-text-color);
+}
+
+/* Separador vertical rítmico entre bloques de una página (16 px = token md). */
+.shoper-stack > * + * {
+  margin-top: var(--shoper-space-md);
+}
+
+/* ==========================================================================
+   8. INSIGNIAS DE ESTADO LOGÍSTICO (REQ-008 / US-04 / US-06)
+   Las cuatro comparten geometría (píldora compacta con punto de color) y
+   solo cambia el par de tokens fondo/texto, ya verificado >= 4.5:1 en
+   variables.scss para modo claro y oscuro.
+   ========================================================================== */
+
+/* Base común de las cuatro insignias: se listan las clases juntas para no
+   duplicar declaraciones (economiza bytes y mantenimiento). */
+.badge-paid,
+.badge-preparing,
+.badge-shipping,
+.badge-delivered {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;                        /* separación punto-texto */
+  padding: 5px 12px;               /* altura resultante ~28px, uso informativo */
+  border-radius: var(--shoper-radius-pill); /* forma píldora */
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.005em;
+  white-space: nowrap;             /* "En preparación" nunca parte en 2 líneas */
+  border: 1px solid transparent;   /* borde teñido por cada modificador */
+}
+
+/* Punto circular de color: refuerzo no-textual del estado (accesible para
+   daltonismo al combinarse con la etiqueta escrita — WCAG 1.4.1). */
+.badge-paid::before,
+.badge-preparing::before,
+.badge-shipping::before,
+.badge-delivered::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;        /* hereda el color de texto del modificador */
+  flex-shrink: 0;
+}
+
+/* PAGADO — verde: fondo suave + texto oscuro (8.29:1 claro / 8.55:1 oscuro). */
+.badge-paid {
+  background: var(--shoper-status-paid-bg);
+  color: var(--shoper-status-paid-fg);
+  border-color: rgba(var(--shoper-status-paid-rgb), 0.35);
+}
+
+/* EN PREPARACIÓN — ámbar: (8.15:1 claro / 8.98:1 oscuro). */
+.badge-preparing {
+  background: var(--shoper-status-preparing-bg);
+  color: var(--shoper-status-preparing-fg);
+  border-color: rgba(var(--shoper-status-preparing-rgb), 0.35);
+}
+
+/* EN CAMINO — azul: (8.49:1 claro / 5.78:1 oscuro). */
+.badge-shipping {
+  background: var(--shoper-status-shipping-bg);
+  color: var(--shoper-status-shipping-fg);
+  border-color: rgba(var(--shoper-status-shipping-rgb), 0.35);
+}
+
+/* ENTREGADO — violeta: (9.23:1 claro / 5.60:1 oscuro). */
+.badge-delivered {
+  background: var(--shoper-status-delivered-bg);
+  color: var(--shoper-status-delivered-fg);
+  border-color: rgba(var(--shoper-status-delivered-rgb), 0.35);
+}
+
+/* ==========================================================================
+   9. TARJETA DE PRODUCTO (Catálogo del Cliente / Inventario del Vendedor)
+   Estructura esperada en la plantilla (Fase 5B):
+   <article class="shoper-product-card">
+     <div class="shoper-product-card__media">…imagen…</div>
+     <div class="shoper-product-card__body">
+       <h2 class="shoper-product-card__title">…</h2>
+       <p class="shoper-product-card__meta">categoría · stock</p>
+       <span class="shoper-price">…</span>
+       <div class="shoper-product-card__actions">…botones…</div>
+     </div>
+   </article>
+   ========================================================================== */
+
+/* Contenedor de la tarjeta: superficie elevada con radio y borde del sistema. */
+.shoper-product-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;                       /* la imagen respeta el radio superior */
+  background: var(--app-surface-bg);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--shoper-radius-card);
+  box-shadow: var(--app-surface-shadow);
+  transition: transform 160ms ease-out, box-shadow 160ms ease-out; /* base del hover/press */
+}
+
+/* Zona de imagen con relación de aspecto 16:10 para equilibrar el tamaño
+   visual respecto al contenido textual y mostrar más productos en pantalla. */
+.shoper-product-card__media {
+  aspect-ratio: 16 / 10;
+  max-height: 220px;
+  background: var(--app-surface-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* La imagen rellena su zona sin deformarse (object-fit: cover). */
+.shoper-product-card__media img,
+.shoper-product-card__media ion-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Cuerpo de texto de la tarjeta con ritmo interno cómodo y legible. */
+.shoper-product-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px 18px;
+}
+
+/* Nombre del producto: 2 líneas máx. con peso fuerte y lectura clara. */
+.shoper-product-card__title {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--ion-text-color);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Metadatos secundarios (categoría, stock disponible): alineados en fila. */
+.shoper-product-card__meta {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ion-color-medium);
+}
+
+/* Fila de acciones al pie de la tarjeta (Agregar al carrito / Editar /
+   Eliminar): pegada al fondo con margen superior automático. */
+.shoper-product-card__actions {
+  margin-top: auto;
+  padding-top: 4px;
+  display: flex;
+  gap: var(--shoper-space-sm);
+  align-items: center;
+
+  ion-button {
+    flex: 1;
+  }
+}
+
+/* ==========================================================================
+   10. LÍNEA DE TIEMPO LOGÍSTICA DE 4 PASOS (US-04 "Mis compras")
+   Pagado → En preparación → En camino → Entregado.
+   Estructura esperada (Fase 5B):
+   <ol class="shoper-timeline" aria-label="Seguimiento del pedido">
+     <li class="shoper-timeline-step shoper-timeline-step--completed">
+       <span class="shoper-timeline-step__dot"><ion-icon …></ion-icon></span>
+       <span class="shoper-timeline-step__label">Pagado</span>
+     </li>
+     … (modificador --active en el paso actual; sin modificador = pendiente)
+   </ol>
+   ========================================================================== */
+
+/* Contenedor horizontal: los 4 pasos se reparten el ancho por igual.
+   La lista se resetea (sin viñetas) porque el propio diseño comunica orden. */
+.shoper-timeline {
+  display: flex;
+  align-items: flex-start;
+  margin: var(--shoper-space-md) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada paso ocupa el mismo espacio y centra su punto + etiqueta. */
+.shoper-timeline-step {
+  position: relative;   /* ancla del conector ::before */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;         /* permite que la etiqueta se trunque sin desbordar */
+}
+
+/* Conector horizontal: línea de 3 px que une el centro del punto anterior
+   con el centro del actual. Se dibuja HACIA ATRÁS (left: -50%) y queda bajo
+   el punto (z-index 0 vs 1); el primer paso no tiene conector. */
+.shoper-timeline-step::before {
+  content: "";
+  position: absolute;
+  top: 15px;             /* centro del punto: 32px/2 - 1px */
+  left: -50%;
+  width: 100%;
+  height: 3px;
+  background: var(--app-surface-border); /* gris = tramo aún no completado */
+  z-index: 0;
+}
+
+/* El paso inicial no tiene tramo entrante que dibujar. */
+.shoper-timeline-step:first-child::before {
+  display: none;
+}
+
+/* Punto circular del paso: 32 px de diámetro, borde neutro y fondo de
+   superficie por defecto (estado PENDIENTE). */
+.shoper-timeline-step__dot {
+  position: relative;
+  z-index: 1;             /* cubre los extremos del conector */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--app-surface-border);
+  background: var(--app-surface-bg);
+  color: var(--ion-color-medium);
+  font-size: 16px;        /* tamaño del icono de verificación interno */
+}
+
+/* Etiqueta textual del paso ("Pagado", "En camino"...): centrada y legible
+   con ajuste automático a dos líneas si hace falta en móviles estrechos. */
+.shoper-timeline-step__label {
+  max-width: 100%;
+  padding-inline: 2px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  color: var(--ion-color-medium);
+}
+
+/* PASO COMPLETADO: punto relleno en verde "Pagado" con icono blanco
+   (contraste 5.01:1 ✓) y conector entrante teñido del mismo verde, de modo
+   que el progreso se lee como un camino continuo ya recorrido. */
+.shoper-timeline-step--completed .shoper-timeline-step__dot {
+  border-color: var(--shoper-status-paid);
+  background: var(--shoper-status-paid);
+  color: #ffffff;
+}
+
+/* El conector entrante de un paso completado hereda el color de progreso. */
+.shoper-timeline-step--completed::before,
+.shoper-timeline-step--active::before {
+  background: var(--shoper-status-paid);
+}
+
+/* Etiqueta de paso completado: texto principal para reforzar la lectura. */
+.shoper-timeline-step--completed .shoper-timeline-step__label {
+  color: var(--ion-text-color);
+}
+
+/* PASO ACTIVO (estado presente del pedido): punto en blanco con borde del
+   color correspondiente según la insignia combinada y halo exterior suave
+   compuesto con rgba() sobre el token RGB del estado. Por defecto usa el
+   índigo primario; las combinaciones siguientes lo especializan. */
+.shoper-timeline-step--active .shoper-timeline-step__dot {
+  border-color: var(--ion-color-primary);
+  background: var(--ion-color-primary);
+  color: #ffffff;
+  box-shadow: 0 0 0 5px rgba(var(--ion-color-primary-rgb), 0.22); /* halo de foco */
+}
+
+/* Etiqueta del paso activo en negrita y color primario: máxima jerarquía. */
+.shoper-timeline-step--active .shoper-timeline-step__label {
+  color: var(--ion-color-primary);
+  font-weight: 700;
+}
+
+/* Especialización del paso activo por estado concreto (la plantilla combina
+   `--active` con la clase del estado): el punto y su halo adoptan el color
+   semántico del estado logístico en curso. */
+.shoper-timeline-step--active.badge-paid .shoper-timeline-step__dot {
+  border-color: var(--shoper-status-paid);
+  background: var(--shoper-status-paid);
+  box-shadow: 0 0 0 5px rgba(var(--shoper-status-paid-rgb), 0.22);
+}
+
+.shoper-timeline-step--active.badge-preparing .shoper-timeline-step__dot {
+  border-color: var(--shoper-status-preparing);
+  background: var(--shoper-status-preparing);
+  box-shadow: 0 0 0 5px rgba(var(--shoper-status-preparing-rgb), 0.22);
+}
+
+.shoper-timeline-step--active.badge-shipping .shoper-timeline-step__dot {
+  border-color: var(--shoper-status-shipping);
+  background: var(--shoper-status-shipping);
+  box-shadow: 0 0 0 5px rgba(var(--shoper-status-shipping-rgb), 0.22);
+}
+
+.shoper-timeline-step--active.badge-delivered .shoper-timeline-step__dot {
+  border-color: var(--shoper-status-delivered);
+  background: var(--shoper-status-delivered);
+  box-shadow: 0 0 0 5px rgba(var(--shoper-status-delivered-rgb), 0.22);
+}
+
+/* ==========================================================================
+   11. HOVER SOLO EN DISPOSITIVOS CON PUNTERO FINO
+   Los estados :hover se encierran en la media query de capacidad para que en
+   pantallas táctiles NO quede un hover "pegado" tras el toque (el feedback
+   táctil lo proporcionan los estados :active de Ionic).
+   ========================================================================== */
+@media (hover: hover) and (pointer: fine) {
+  /* Elevación sutil de la tarjeta de producto al pasar el ratón: útil en la
+     previsualización de escritorio (`ionic serve`) sin afectar al móvil. */
+  .shoper-product-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 40px -8px rgba(15, 23, 42, 0.18);
+  }
+}
+
+/* Feedback de pulsación en la tarjeta interactiva (rol botón/enlace): la
+   escala al 98% durante :active responde en cuanto el dedo presiona, no al
+   soltar, que es lo que hace sentir "instantánea" a una app nativa. */
+.shoper-product-card:active {
+  transform: scale(0.98);
+}
+
+/* ==========================================================================
+   12. AVISO DE SEGURIDAD COMPARTIDO (SEC-002)
+   Superficie rebajada con icono a la izquierda usada en el login, el carrito
+   y la pestaña de pedidos para comunicar de forma transparente que el token
+   es demostrativo y que no se gestiona PII financiera.
+   Estructura esperada:
+   <aside class="shoper-security-notice">
+     <ion-icon …></ion-icon>
+     <p>…texto transparente…</p>
+   </aside>
+   ========================================================================== */
+
+/* Contenedor del aviso: fila con icono fijo y texto legible. */
+.shoper-security-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--app-surface-muted);
+  border: 1px solid var(--app-surface-border);
+}
+
+/* Icono del aviso en color primario; tamaño fijo que no se comprime. */
+.shoper-security-notice ion-icon {
+  font-size: 22px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  color: var(--ion-color-primary);
+}
+
+/* Texto del aviso: tamaño legible con interlineado cómodo de lectura. */
+.shoper-security-notice p {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--ion-color-medium);
+}
+
+/* Contenido interno de los botones de acceso rápido con credenciales en LoginPage. */
+.demo-button {
+  min-height: 60px;
+  height: auto;
+  white-space: normal;
+}
+
+.demo-button__content {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  line-height: 1.25;
+}
+
+.demo-button__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+.demo-button__meta {
+  font-size: 0.82rem;
+  font-weight: 600;
+  opacity: 0.92;
+}
+
+/* Nombres técnicos (<code>) dentro del aviso: color de texto base. */
+.shoper-security-notice code {
+  color: var(--ion-text-color);
+}
+
+/* ==========================================================================
+   13. TARJETA DE PEDIDO Y SEGUIMIENTO LOGÍSTICO (US-04 / US-05 / US-06)
+   Estructura compartida por la vista del Cliente ("Mis compras") y la cola
+   del Vendedor ("Pedidos activos") en Tab3Page:
+   <article class="shoper-order-card app-surface-card">
+     <header class="shoper-order-card__header">id + insignia .badge-*</header>
+     <p class="shoper-order-card__meta">unidades · total · fecha</p>
+     <ul class="shoper-order-card__items">líneas del pedido</ul>
+     <ol class="shoper-timeline">…4 pasos…</ol>  (ver §10)
+     <section class="shoper-order-history">…statusHistory ISO-8601…</section>
+   </article>
+   ========================================================================== */
+
+/* Tarjeta de pedido: superficie elevada con pila interna de bloques. */
+.shoper-order-card {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Cabecera de la tarjeta: id a la izquierda e insignia de estado a la derecha. */
+.shoper-order-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--shoper-space-sm);
+}
+
+/* Identificador del pedido (#ORD-XXXX) en peso fuerte. */
+.shoper-order-card__id {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--ion-text-color);
+}
+
+/* Resumen comercial: metadatos rebajados sin margen externo. */
+.shoper-order-card__meta {
+  margin: 0;
+}
+
+/* Lista de líneas del pedido: sin viñetas, texto legible en pila. */
+.shoper-order-card__items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ion-text-color);
+}
+
+/* Cantidad de cada línea resaltada con el color primario de marca. */
+.shoper-order-card__item-quantity {
+  font-weight: 800;
+  color: var(--ion-color-primary);
+}
+
+/* Botón "Avanzar a …" del Vendedor: margen extra de separación. */
+.shoper-order-card__advance {
+  margin-top: var(--shoper-space-xs);
+}
+
+/* La línea de tiempo (§10) combina `--active` con la clase `badge-*` para
+   teñir el punto actual con el color semántico del estado; aquí se NEUTRALIZA
+   la decoración de píldora que las insignias aportarían al <li> (fondo,
+   acolchado, borde y radio) para que el paso siga leyendo como parte del
+   camino continuo y no como una etiqueta aislada. */
+.shoper-timeline-step.badge-paid,
+.shoper-timeline-step.badge-preparing,
+.shoper-timeline-step.badge-shipping,
+.shoper-timeline-step.badge-delivered {
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+}
+
+/* Historial de estados del pedido: bloque diferenciado con fondo rebajado. */
+.shoper-order-history {
+  margin-top: var(--shoper-space-xs);
+  padding: 14px 16px;
+  border-radius: var(--shoper-radius-control);
+  background: var(--app-surface-muted);
+}
+
+/* Título compacto del historial en versalitas de jerarquía intermedia. */
+.shoper-order-history__title {
+  margin: 0 0 var(--shoper-space-sm);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ion-color-medium);
+}
+
+/* Lista cronológica sin viñetas (el orden ya lo comunica el diseño). */
+.shoper-order-history__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Entrada individual del historial: rejilla de 3 filas (estado, ISO crudo y
+   fecha legible) con el icono de reloj anclado a la izquierda. */
+.shoper-order-history__entry {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "icon status"
+    "icon iso"
+    "icon local";
+  column-gap: 10px;
+  row-gap: 2px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Icono de reloj de la entrada, alineado con la primera línea de texto. */
+.shoper-order-history__entry ion-icon {
+  grid-area: icon;
+  align-self: start;
+  margin-top: 3px;
+  font-size: 17px;
+  color: var(--ion-color-medium);
+}
+
+/* Nombre del estado alcanzado en la transición. */
+.shoper-order-history__status {
+  grid-area: status;
+  font-weight: 700;
+  color: var(--ion-text-color);
+}
+
+/* Timestamp ISO-8601 crudo en monoespaciada (evidencia técnica de la máquina
+   de estados); `word-break` evita desbordes en pantallas estrechas. */
+.shoper-order-history__timestamp {
+  grid-area: iso;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  font-weight: 500;
+  word-break: break-all;
+  color: var(--ion-color-medium);
+}
+
+/* Versión legible en español de la misma marca temporal. */
+.shoper-order-history__local {
+  grid-area: local;
+}
+
+/* Lista de pedidos entregados (archivo del Vendedor): superficie elevada. */
+.shoper-delivered-list {
+  border-radius: var(--shoper-radius-card);
+  overflow: hidden;
+  border: 1px solid var(--app-surface-border);
+  background: var(--app-surface-bg);
+}
+
+/* Fila de archivo: pila con identificador y metadatos comerciales. */
+.shoper-delivered-item__label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-block: 10px;
+}
+
+/* Identificador del pedido archivado en peso fuerte. */
+.shoper-delivered-item__id {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--ion-text-color);
+}
+
+/* Panel de sesión JWT: superficie elevada sin márgenes externos. */
+.shoper-session-list {
+  margin: 0;
+  overflow: hidden;
+
+  ion-label {
+    font-size: 0.96rem;
+    font-weight: 600;
+  }
+
+  ion-note {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ion-text-color);
+    max-width: 58%;
+    text-align: end;
+  }
+}
+
+/* Extractos técnicos (token enmascarado) en fuente monoespaciada. */
+.shoper-mono-note {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   14. ANIMACIONES Y MICRO-INTERACCIONES MÓVILES (Fase 7 — TASK-023)
+   Propósito : Aportar retroalimentación visual fluida y no intrusiva en los
+               puntos de mayor valor perceptivo de App Shoper: aparición de
+               tarjetas en el catálogo, cambios del contador/totales del
+               carrito, conmutación de rol Cliente/Vendedor y avance de la
+               línea de tiempo logística de 4 pasos.
+   Criterios : - Solo `transform` y `opacity` (GPU, sin layout/paint costoso).
+               - Curvas y duraciones acotadas (< 300 ms en UI) para no frenar
+                 interacciones frecuentes.
+               - Respeto estricto de `prefers-reduced-motion`: en modo reducir
+                 se eliminan desplazamientos/escala y se conservan transiciones
+                 de color/opacidad suaves cuando ayudan a la comprensión.
+               - Centralización aquí para no exceder `anyComponentStyle <= 2 kB`.
+   Autor     : John Fredy Marciales Morales
+   Fase SDD  : Fase 7 — Animación y Micro-interacciones (TASK-023)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   14.1 Curva y duraciones reutilizables para animaciones de fase 7
+   - `--shoper-ease-out`: curva de salida marcada (cubic-bezier 0.23,1,0.32,1)
+     recomendada para entradas UI: arranque rápido y asentamiento suave, de
+     modo que el elemento se perciba ágil sin rebote excesivo.
+   - Duraciones entre 140–260 ms: suficientemente perceptibles para comunicar
+     cambio de estado pero por debajo del umbral de 300 ms para UI estándar.
+   -------------------------------------------------------------------------- */
+:root {
+  /* Curva de salida fuerte para entradas y realces de estado en la interfaz. */
+  --shoper-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* Duración corta para micro-feedback de contadores y totales monetarios. */
+  --shoper-duration-fast: 160ms;
+  /* Duración media para transiciones de conmutadores y resaltados de pasos. */
+  --shoper-duration-medium: 220ms;
+  /* Duración de entrada escalonada de tarjetas del catálogo de productos. */
+  --shoper-duration-enter: 260ms;
+}
+
+/* --------------------------------------------------------------------------
+   14.2 Animación de entrada del catálogo (Tab1 — tarjetas de producto)
+   Objetivo : Revelar cada tarjeta con fade-in + slide-up suave para dar
+              sensación de carga progresiva y jerarquía visual sin bloquear
+              la lectura. Se aplica de forma escalonada por índice mediante la
+              variable CSS `--shoper-stagger-delay` inyectada desde la plantilla.
+   Propiedades : `opacity` (0→1) y `transform: translateY` (12px→0) — solo
+              composición GPU. Escala no necesaria; se evita `scale(0)`.
+   Curva/Duración : `--shoper-ease-out` / `--shoper-duration-enter` (260 ms)
+              + retardo escalonado (≈40 ms por elemento, controlado en HTML).
+   -------------------------------------------------------------------------- */
+@keyframes shoper-fade-in-up {
+  /* Estado inicial: tarjeta invisible y ligeramente desplazada hacia abajo. */
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  /* Estado final: tarjeta totalmente visible en su posición natural. */
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Clase utilitaria aplicada a cada columna/tarjeta del catálogo (Tab1):
+   ejecuta la animación de entrada una sola vez al renderizarse. `both` mantiene
+   el estado inicial durante el retardo y el final al terminar, evitando saltos. */
+.shoper-fade-in-up {
+  /* Nombre del keyframe de aparición con desplazamiento vertical ascendente. */
+  animation-name: shoper-fade-in-up;
+  /* Duración media de entrada definida para tarjetas del catálogo. */
+  animation-duration: var(--shoper-duration-enter);
+  /* Curva de salida fuerte para que la entrada se perciba rápida y natural. */
+  animation-timing-function: var(--shoper-ease-out);
+  /* Conserva estilos iniciales y finales para un escalonado sin parpadeos. */
+  animation-fill-mode: both;
+  /* Retardo escalonado por índice; por defecto 0 ms si no se define la variable. */
+  animation-delay: var(--shoper-stagger-delay, 0ms);
+}
+
+/* --------------------------------------------------------------------------
+   14.3 Contador del carrito y totales (Tab2 y barra de pestañas)
+   Objetivo : Reforzar el cambio de cantidad/importe con un "pop" sutil
+              (ligero aumento de escala y retorno) que confirma la actualización
+              sin distraer. En badges se aplica como animación de aparición;
+              en totales como transición suave de color/transform.
+   Propiedades : `transform: scale` y `opacity` en animación; transición solo
+              en `transform` y `color` para totales (propiedades explícitas).
+   Curva/Duración : `--shoper-ease-out` / `--shoper-duration-fast` (160 ms).
+   -------------------------------------------------------------------------- */
+@keyframes shoper-pop-badge {
+  /* Inicio ligeramente reducido y tenue para enfatizar la aparición del badge. */
+  0% {
+    opacity: 0.6;
+    transform: scale(0.85);
+  }
+  /* Pico intermedio: pequeño sobreimpulso que hace perceptible el cambio. */
+  60% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  /* Asentamiento final en escala natural sin rebote adicional. */
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Clase para insignias de cantidad en la barra de pestañas (carrito/pedidos):
+   aplica un pop breve al mostrarse, comunicando que el contador se actualizó. */
+.shoper-cart-badge-pop {
+  /* Ejecuta la animación de pop corta y contenida sobre la insignia. */
+  animation: shoper-pop-badge var(--shoper-duration-fast) var(--shoper-ease-out);
+  /* Punto de transformación centrado para que el escalado sea simétrico. */
+  transform-origin: center;
+  /* Hint al compositor para optimizar la animación de transform/opacity. */
+  will-change: transform, opacity;
+}
+
+/* Clase para valores numéricos del carrito (unidades/total): transición suave
+   que acompaña cambios de estado visual sin mover layout (solo transform/color). */
+.shoper-cart-value-transition {
+  /* Transición explícita (nunca `all`) limitada a propiedades baratas. */
+  transition: transform var(--shoper-duration-fast) var(--shoper-ease-out),
+    color var(--shoper-duration-fast) var(--shoper-ease-out);
+  /* Origen centrado para cualquier realce de escala aplicado por estado. */
+  transform-origin: left center;
+}
+
+/* Realce breve reutilizable: puede aplicarse para enfatizar un total activo
+   manteniendo la transformación dentro de límites sutiles (sin desbordes). */
+.shoper-cart-value-transition.is-updated {
+  /* Escala mínima que sugiere actualización sin alterar la lectura del importe. */
+  transform: scale(1.03);
+  /* Tono primario para reforzar que el valor recién calculado es el vigente. */
+  color: var(--ion-color-primary);
+}
+
+/* --------------------------------------------------------------------------
+   14.4 Conmutador de rol Cliente/Vendedor (Tabs — ion-segment)
+   Objetivo : Hacer evidente el cambio de contexto de rol con una transición
+              suave de color, fondo e indicador, proporcionando feedback visual
+              inmediato al tocar el segmento.
+   Propiedades : Transiciones de `color`, `background-color` y `opacity` sobre
+              los botones del segmento e indicador (propiedades seguras/visuales).
+   Curva/Duración : `ease-out` implícito vía `--shoper-ease-out` / 220 ms.
+   -------------------------------------------------------------------------- */
+ion-segment.shoper-role-segment ion-segment-button {
+  /* Transición explícita de colores para suavizar el cambio de rol activo. */
+  transition: color var(--shoper-duration-medium) var(--shoper-ease-out),
+    background-color var(--shoper-duration-medium) var(--shoper-ease-out),
+    opacity var(--shoper-duration-medium) var(--shoper-ease-out);
+  /* Radio suave coherente con controles táctiles de la app. */
+  border-radius: var(--shoper-radius-control);
+}
+
+/* Estado activo del segmento: refuerza el contexto seleccionado con peso visual
+   adicional; el cambio de apariencia se anima por la transición declarada arriba. */
+ion-segment.shoper-role-segment ion-segment-button.segment-button-checked {
+  /* Opacidad plena para el rol vigente frente a la opción no seleccionada. */
+  opacity: 1;
+}
+
+/* Estado inactivo: ligera atenuación que mejora el contraste con el rol activo
+   sin comprometer legibilidad ni el tamaño táctil mínimo del control. */
+ion-segment.shoper-role-segment ion-segment-button:not(.segment-button-checked) {
+  /* Atenuación moderada para jerarquizar el rol actualmente seleccionado. */
+  opacity: 0.82;
+}
+
+/* --------------------------------------------------------------------------
+   14.5 Línea de tiempo logística (Tab3 — progreso de 4 pasos)
+   Objetivo : Comunicar el avance de estado (Pagado → En preparación → En camino
+              → Entregado) animando el conector y resaltando el paso activo con
+              una pulsación suave, reforzando la percepción de progreso.
+   Propiedades : `background-color`, `box-shadow`, `transform` y `opacity` con
+              transiciones/animaciones acotadas; conectores usan color de fondo.
+   Curva/Duración : `--shoper-ease-out` / 220 ms para transiciones; 1.6 s en
+              bucle muy sutil solo para el halo del paso activo.
+   -------------------------------------------------------------------------- */
+@keyframes shoper-timeline-pulse {
+  /* Estado base del halo: presencia visible pero contenida alrededor del punto. */
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(var(--ion-color-primary-rgb), 0.18);
+  }
+  /* Expansión intermedia del halo para sugerir "paso en curso" de forma suave. */
+  50% {
+    box-shadow: 0 0 0 7px rgba(var(--ion-color-primary-rgb), 0.08);
+  }
+}
+
+/* Transición del conector entre pasos: el cambio de color (gris → progreso)
+   se interpola suavemente cuando el pedido avanza en la máquina de estados. */
+.shoper-timeline-step::before {
+  /* Transición explícita del fondo del conector para animar el avance visual. */
+  transition: background-color var(--shoper-duration-medium) var(--shoper-ease-out);
+}
+
+/* Transición del punto y la etiqueta de cada paso: suaviza cambios de color,
+   borde y sombra al pasar entre estados pendiente, activo y completado. */
+.shoper-timeline-step__dot {
+  /* Interpolación suave de colores y realce del punto en cada transición. */
+  transition: background-color var(--shoper-duration-medium) var(--shoper-ease-out),
+    border-color var(--shoper-duration-medium) var(--shoper-ease-out),
+    color var(--shoper-duration-medium) var(--shoper-ease-out),
+    box-shadow var(--shoper-duration-medium) var(--shoper-ease-out),
+    transform var(--shoper-duration-medium) var(--shoper-ease-out);
+}
+
+/* Transición de la etiqueta textual del paso para acompañar el cambio de
+   jerarquía cromática cuando el paso se activa o se completa. */
+.shoper-timeline-step__label {
+  /* Cambio progresivo de color y peso percibido mediante transición de color. */
+  transition: color var(--shoper-duration-medium) var(--shoper-ease-out),
+    opacity var(--shoper-duration-medium) var(--shoper-ease-out);
+}
+
+/* Realce animado del paso activo: pulso muy sutil del halo que indica el
+   estado actual del pedido sin competir con el contenido principal. */
+.shoper-timeline-step--active .shoper-timeline-step__dot {
+  /* Animación lenta y suave; duración > 1s es decorativa y acotada al activo. */
+  animation: shoper-timeline-pulse 1.6s var(--shoper-ease-out) infinite;
+}
+
+/* Halo específico cuando el paso activo representa "Pagado" (verde semántico):
+   usa el RGB del estado para mantener coherencia con la insignia logística. */
+.shoper-timeline-step--active.badge-paid .shoper-timeline-step__dot {
+  /* Pulso con tinte verde propio del estado Pagado para consistencia visual. */
+  box-shadow: 0 0 0 5px rgba(var(--shoper-status-paid-rgb), 0.22);
+}
+
+/* Halo específico para el estado "En preparación" (ámbar) en el paso activo. */
+.shoper-timeline-step--active.badge-preparing .shoper-timeline-step__dot {
+  /* Sombra expandida con el color ámbar del estado En preparación. */
+  box-shadow: 0 0 0 5px rgba(var(--shoper-status-preparing-rgb), 0.22);
+}
+
+/* Halo específico para el estado "En camino" (azul) en el paso activo. */
+.shoper-timeline-step--active.badge-shipping .shoper-timeline-step__dot {
+  /* Sombra expandida con el color azul del estado En camino. */
+  box-shadow: 0 0 0 5px rgba(var(--shoper-status-shipping-rgb), 0.22);
+}
+
+/* Halo específico para el estado "Entregado" (violeta) en el paso activo. */
+.shoper-timeline-step--active.badge-delivered .shoper-timeline-step__dot {
+  /* Sombra expandida con el color violeta del estado Entregado. */
+  box-shadow: 0 0 0 5px rgba(var(--shoper-status-delivered-rgb), 0.22);
+}
+
+/* --------------------------------------------------------------------------
+   14.6 Accesibilidad: reducción de movimiento (prefers-reduced-motion)
+   Estrategia : Desactivar desplazamientos, escalados y bucles decorativos para
+                usuarios que solicitan menos movimiento. Se mantienen cambios de
+                color/estado instantáneos o con transiciones mínimas que ayudan
+                a comprender el progreso sin provocar mareo o distracción.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  /* Tarjetas del catálogo: sin animación de entrada ni desplazamiento inicial;
+     aparecen inmediatamente para evitar movimiento vertical no esencial. */
+  .shoper-fade-in-up {
+    /* Cancela el keyframe de fade/slide para respetar la preferencia del usuario. */
+    animation: none !important;
+    /* Asegura opacidad completa sin depender de animation-fill-mode. */
+    opacity: 1 !important;
+    /* Elimina cualquier transformación residual de la animación de entrada. */
+    transform: none !important;
+  }
+
+  /* Insignias del carrito: sin pop de escala; se conserva la legibilidad del
+     contador mediante presentación estática inmediata. */
+  .shoper-cart-badge-pop {
+    /* Desactiva la animación de pop para evitar escalado brusco. */
+    animation: none !important;
+  }
+
+  /* Valores del carrito: se eliminan transiciones de movimiento; el cambio de
+     contenido/valor sigue siendo visible por actualización textual. */
+  .shoper-cart-value-transition {
+    /* Suprime transiciones para que no haya interpolación de transform/color. */
+    transition: none !important;
+  }
+
+  /* Segmento de rol: cambios de estado instantáneos, sin interpolación animada,
+     manteniendo la distinción visual entre rol activo e inactivo. */
+  ion-segment.shoper-role-segment ion-segment-button {
+    /* Retira transiciones del conmutador para una respuesta inmediata y estática. */
+    transition: none !important;
+  }
+
+  /* Línea de tiempo: conectores, puntos y etiquetas cambian sin animación;
+     la semántica de progreso (colores/completado) permanece intacta. */
+  .shoper-timeline-step::before,
+  .shoper-timeline-step__dot,
+  .shoper-timeline-step__label {
+    /* Desactiva transiciones de progreso para usuarios sensibles al movimiento. */
+    transition: none !important;
+  }
+
+  /* Paso activo: elimina el pulso infinito decorativo del halo de estado. */
+  .shoper-timeline-step--active .shoper-timeline-step__dot {
+    /* Cancela el bucle de pulsación manteniendo el resaltado estático definido. */
+    animation: none !important;
+  }
 }

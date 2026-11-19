@@ -1,118 +1,133 @@
 /**
- * @fileoverview Pruebas unitarias y de seguridad de `jwtInterceptor` e `isApiUrl`.
+ * Pruebas unitarias de `jwtAuthInterceptor` (Fase 6 SDD — TASK-020).
  *
- * @description
- * Comprueba que el token Bearer solo se adjunta a peticiones cuyo origen y
- * ruta pertenecen estrictamente a `environment.apiUrl` (impidiendo filtración
- * a dominios engañosos con el mismo prefijo) y que un 401 en recursos
- * protegidos dispara el cierre de sesión una única vez.
+ * Verifica la inyección de `Authorization: Bearer` únicamente hacia
+ * `environment.apiBaseUrl` y la exclusión explícita del endpoint `/auth/login`.
  *
- * @author @quality-security-auditor (Fase 6)
- * @phase SDD Fase 6 — Calidad, Accesibilidad y Seguridad
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-12
+ * @phase SDD Fase 6 — Calidad, Pruebas y Auditoría
  */
 
-// Contenedor de pruebas de Angular.
+// Utilidades de Angular Testing para configurar un cliente HTTP con interceptores.
 import { TestBed } from '@angular/core/testing';
-
-// Cliente HTTP con soporte de interceptores funcionales y controlador de pruebas.
+// Cliente HTTP real que atravesará el interceptor bajo prueba.
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
+// Backend de pruebas que captura las peticiones emitidas por HttpClient.
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-
-// Operador para consumir respuestas observables como promesas en los tests.
+// Señal usada para simular el estado reactivo de la sesión autenticada.
+import { signal } from '@angular/core';
+// Utilidad RxJS para convertir la primera emisión del observable en una promesa.
 import { firstValueFrom } from 'rxjs';
 
-// Interceptor funcional bajo prueba.
-import { jwtInterceptor } from './jwt.interceptor';
-
-// Servicio de autenticación simulado para controlar el token activo.
-import { AuthJwtService } from '../services/auth-jwt.service';
-
-// Entorno con la URL base configurada.
+// Interceptor funcional que debe adjuntar el token Bearer según las reglas de seguridad.
+import { jwtAuthInterceptor } from './jwt.interceptor';
+// Servicio de autenticación del que el interceptor lee la sesión actual.
+import { JwtAuthenticationService } from '../services/auth-jwt.service';
+// Entorno con el origen base autorizado de la API.
 import { environment } from '../../environments/environment';
+// Contrato de sesión persistida para tipar el doble de prueba.
+import type { PersistedSessionRecord } from '../models/shoper.model';
 
-describe('jwtInterceptor', () => {
-  // Cliente HTTP instrumentado con `jwtInterceptor`.
-  let http: HttpClient;
+// Suite de pruebas del interceptor JWT.
+describe('jwtAuthInterceptor', () => {
+  // Cliente HTTP configurado con el interceptor a evaluar.
+  let httpClient: HttpClient;
+  // Controlador que permite inspeccionar las cabeceras de las peticiones.
+  let httpController: HttpTestingController;
+  // Señal simulada que representa la sesión activa expuesta por el servicio.
+  let sessionSignal: ReturnType<typeof signal<PersistedSessionRecord | null>>;
 
-  // Controlador para inspeccionar cabeceras enviadas.
-  let httpMock: HttpTestingController;
-
-  // Doble de prueba de `AuthJwtService`.
-  let authStub: {
-    getValidToken: ReturnType<typeof vi.fn>;
-    logout: ReturnType<typeof vi.fn>;
+  // Sesión de ejemplo con token válido para los escenarios que requieren autorización.
+  const activeSession: PersistedSessionRecord = {
+    accessToken: 'jwt-token-demo',
+    refreshToken: 'refresh-token-demo',
+    username: 'emilys',
+    firstName: 'Emily',
+    lastName: 'Stone',
+    role: 'customer',
+    source: 'remote-api',
+    schemaVersion: 1,
   };
 
+  // Configura el entorno de pruebas con un servicio de sesión simulado.
   beforeEach(() => {
-    authStub = {
-      getValidToken: vi.fn().mockResolvedValue('jwt-seguro-demo'),
-      logout: vi.fn().mockResolvedValue(undefined),
-    };
+    // Inicializa la señal con una sesión autenticada por defecto.
+    sessionSignal = signal<PersistedSessionRecord | null>(activeSession);
 
+    // Registra el cliente HTTP con el interceptor y el doble del servicio de sesión.
     TestBed.configureTestingModule({
       providers: [
-        { provide: AuthJwtService, useValue: authStub },
-        provideHttpClient(withInterceptors([jwtInterceptor])),
+        { provide: JwtAuthenticationService, useValue: { sessionSignal } },
+        provideHttpClient(withInterceptors([jwtAuthInterceptor])),
         provideHttpClientTesting(),
       ],
     });
 
-    http = TestBed.inject(HttpClient);
-    httpMock = TestBed.inject(HttpTestingController);
+    // Obtiene las instancias necesarias para ejecutar y observar las peticiones.
+    httpClient = TestBed.inject(HttpClient);
+    httpController = TestBed.inject(HttpTestingController);
   });
 
+  // Verifica que no queden peticiones pendientes y limpia los espías.
   afterEach(() => {
-    httpMock.verify();
+    // Garantiza que todas las solicitudes hayan sido atendidas.
+    httpController.verify();
+    // Restaura los mocks de Vitest al estado inicial.
     vi.restoreAllMocks();
   });
 
-  it('debe inyectar Authorization Bearer en peticiones dirigidas a environment.apiUrl', async () => {
-    const requestPromise = firstValueFrom(http.get(`${environment.apiUrl}/photos`));
-
-    // Espera un microtask para que `from(authService.getValidToken())` emita el token.
+  // Debe adjuntar Authorization Bearer en peticiones al origen autorizado distinto de /auth/login.
+  it('debe adjuntar Authorization: Bearer en peticiones dirigidas a environment.apiBaseUrl', async () => {
+    // Emite una petición GET protegida hacia el origen autorizado.
+    const requestPromise = firstValueFrom(httpClient.get(`${environment.apiBaseUrl}/products?limit=20`));
+    // Cede el ciclo para que HttpClient emita la solicitud interceptada.
     await Promise.resolve();
 
-    const req = httpMock.expectOne(`${environment.apiUrl}/photos`);
-    expect(req.request.headers.get('Authorization')).toBe('Bearer jwt-seguro-demo');
-    req.flush([]);
+    // Captura la petición y comprueba la cabecera de autorización.
+    const pendingRequest = httpController.expectOne(`${environment.apiBaseUrl}/products?limit=20`);
+    expect(pendingRequest.request.headers.get('Authorization')).toBe('Bearer jwt-token-demo');
+    // Responde con un cuerpo vacío para completar el observable.
+    pendingRequest.flush({});
 
+    // Espera la resolución final de la promesa.
     await requestPromise;
   });
 
-  it('NO debe filtrar el token a un host o path que solo comparta el prefijo de apiUrl (SEC-004)', async () => {
-    const attackerUrl = `${environment.apiUrl}.evil.example.org/photos`;
-    const siblingPathUrl = 'https://api.example.com/v10/photos';
+  // No debe adjuntar el token al endpoint de login aunque pertenezca al origen autorizado.
+  it('no debe adjuntar Authorization al endpoint /auth/login', async () => {
+    // Emite una petición POST al endpoint de autenticación.
+    const requestPromise = firstValueFrom(
+      httpClient.post(`${environment.apiBaseUrl}/auth/login`, { username: 'u', password: 'p' })
+    );
+    // Permite que la solicitud sea registrada por el controlador.
+    await Promise.resolve();
 
-    const p1 = firstValueFrom(http.get(attackerUrl));
-    const p2 = firstValueFrom(http.get(siblingPathUrl));
+    // Captura la petición de login y verifica que no incluya la cabecera Bearer.
+    const pendingRequest = httpController.expectOne(`${environment.apiBaseUrl}/auth/login`);
+    expect(pendingRequest.request.headers.has('Authorization')).toBe(false);
+    // Responde para completar la petición.
+    pendingRequest.flush({});
 
-    const req1 = httpMock.expectOne(attackerUrl);
-    const req2 = httpMock.expectOne(siblingPathUrl);
-
-    expect(req1.request.headers.has('Authorization')).toBe(false);
-    expect(req2.request.headers.has('Authorization')).toBe(false);
-
-    req1.flush({});
-    req2.flush({});
-    await Promise.all([p1, p2]);
+    // Espera la finalización del flujo.
+    await requestPromise;
   });
 
-  it('debe cerrar sesión una sola vez ante un 401 de un endpoint protegido, pero no en /auth/login', async () => {
-    // 1) Un 401 en `/auth/login` representa credenciales inválidas, no sesión caducada.
-    const loginCall = firstValueFrom(http.post(`${environment.apiUrl}/auth/login`, {}));
-    await Promise.resolve();
-    const loginReq = httpMock.expectOne(`${environment.apiUrl}/auth/login`);
-    loginReq.flush({ error: 'invalid' }, { status: 401, statusText: 'Unauthorized' });
-    await expect(loginCall).rejects.toBeTruthy();
-    expect(authStub.logout).not.toHaveBeenCalled();
+  // No debe adjuntar el token a orígenes externos distintos de apiBaseUrl.
+  it('no debe adjuntar Authorization a orígenes externos o no autorizados', async () => {
+    // Define un origen externo que no debe recibir credenciales.
+    const externalUrl = 'https://fakestoreapi.com/products';
 
-    // 2) Un 401 en `/photos` sí debe invocar `logout({ redirect: true })`.
-    const photosCall = firstValueFrom(http.get(`${environment.apiUrl}/photos`));
+    // Emite la petición hacia el dominio externo.
+    const requestPromise = firstValueFrom(httpClient.get(externalUrl));
     await Promise.resolve();
-    const photosReq = httpMock.expectOne(`${environment.apiUrl}/photos`);
-    photosReq.flush({ error: 'expired' }, { status: 401, statusText: 'Unauthorized' });
-    await expect(photosCall).rejects.toBeTruthy();
-    expect(authStub.logout).toHaveBeenCalledTimes(1);
-    expect(authStub.logout).toHaveBeenCalledWith({ redirect: true });
+
+    // Comprueba que la cabecera Authorization esté ausente.
+    const pendingRequest = httpController.expectOne(externalUrl);
+    expect(pendingRequest.request.headers.has('Authorization')).toBe(false);
+    pendingRequest.flush([]);
+
+    // Finaliza la promesa asociada.
+    await requestPromise;
   });
 });

@@ -1,157 +1,174 @@
 /**
- * @fileoverview Estilos de la pantalla de inicio de sesión (`LoginPage`).
- *
- * @description
- * Construye una composición móvil moderna con franja superior en degradado,
- * tarjeta elevada con sombra pronunciada, campos `outline` separados y botones
- * primario/secundario con feedback táctil en `:active` bajo el presupuesto CSS.
- *
- * @author @ionic-ui-animator (Fase 4 / 5B / 7)
- * @phase SDD Fase 5B — Desarrollo de componentes
+ * ===========================================================================
+ * APP SHOPER — Estilos de la pantalla de inicio de sesión (`LoginPage`)
+ * ===========================================================================
+ * Propósito : Maquetar la tarjeta de autenticación (identidad, segmento de
+ *             rol, campos, accesos rápidos y aviso de seguridad) consumiendo
+ *             los tokens de `theme/variables.scss` y las utilidades de
+ *             `global.scss` para respetar el presupuesto CSS (CON-002:
+ *             anyComponentStyle <= 2.00 kB tras minificar).
+ * Fase SDD  : Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-016).
+ * Autor     : John Fredy Marciales Morales
+ * Fecha     : 2026-11-12
+ * ===========================================================================
  */
 
-// Curva y duración de micro-interacción táctil.
+// Curva y duración de la micro-interacción de pulsación (skill animate):
+// ease-out fuerte + 140 ms responde "al presionar", no al soltar.
 $ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
 $press-duration: 140ms;
 
-// Cabecera decorativa en degradado detrás de la parte superior de la tarjeta.
+// Franja superior con gradiente de marca detrás de la tarjeta (decorativa).
 .login-backdrop {
   position: absolute;
   inset: 0 0 auto;
   height: 230px;
   background: var(--app-hero-gradient);
   border-radius: 0 0 36px 36px;
-  pointer-events: none;
+  pointer-events: none; // no bloquea toques que caigan sobre la tarjeta
 }
 
-// Contenedor principal centrado a pantalla completa (`100dvh`) con safe-areas.
-.login-wrapper {
-  position: relative;
-  min-height: 100dvh;
+.login-wrapper,
+.login-logo-badge {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.login-card,
+.login-header,
+.login-form {
+  display: flex;
+  flex-direction: column;
+}
+
+// Centrado vertical con altura DINÁMICA (100dvh) y respeto de safe areas:
+// el notch arriba y la barra de gestos abajo nunca solapan el formulario.
+.login-wrapper {
+  position: relative;
+  min-height: 100dvh;
   padding: calc(24px + env(safe-area-inset-top, 0px)) 18px
     calc(24px + env(safe-area-inset-bottom, 0px));
 }
 
-// Tarjeta elevada del formulario con ancho óptimo para móvil y tablet.
+// Tarjeta elevada del formulario; ancho máximo para lectura cómoda en tablets.
 .login-card {
   width: 100%;
   max-width: 420px;
   padding: 28px 22px 24px;
-  display: flex;
-  flex-direction: column;
   gap: 20px;
 }
 
-// Bloque centrado de logotipo y títulos.
+// Bloque de identidad: insignia de tienda, título y subtítulo centrados.
 .login-header {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 6px;
   text-align: center;
 }
 
-// Insignia con degradado y sombra de marca.
+// Insignia cuadrada con el gradiente de marca y sombra índigo suave.
 .login-logo-badge {
   width: 68px;
   height: 68px;
   border-radius: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: var(--app-hero-gradient);
   box-shadow: 0 10px 22px rgba(79, 70, 229, 0.32);
-  margin-bottom: 4px;
 }
 
-// Icono blanco de cámara dentro de la insignia.
+// Icono de la insignia en blanco sobre el gradiente (contraste > 4.5:1).
 .login-logo {
   font-size: 34px;
   color: #fff;
 }
 
-// Título principal con alto contraste y sin contorno de foco intrusivo.
+// Título principal: receptor del foco accesible (outline:none evita el anillo
+// doble; el foco programático se anuncia por el propio lector de pantalla).
 .login-title {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: 1.75rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--ion-text-color);
   outline: none;
 }
 
-// Subtítulo secundario bajo el nombre de la app.
+// Subtítulo descriptivo del dominio comercial.
 .login-subtitle {
   margin: 0;
-  font-size: 0.94rem;
+  font-size: 0.98rem;
+  font-weight: 500;
+  line-height: 1.45;
   color: var(--ion-color-medium);
 }
 
-// Pila vertical de controles del formulario.
+// Disposición vertical rítmica de los controles del formulario.
 .login-form {
+  gap: 18px;
+}
+
+// Panel de accesos rápidos: `fieldset` reseteado (sin borde nativo) con fondo
+// punteado que comunica "herramienta de demostración".
+.demo-panel {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--app-surface-border);
+  border-radius: 14px;
+  background: var(--app-surface-muted);
+}
+
+// Leyenda del fieldset: texto legible con color secundario AA.
+.demo-legend {
+  padding: 0 8px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--ion-color-medium);
+}
+
+// Fila de los dos botones de autocompletado (Cliente | Tienda).
+.demo-buttons-row {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  gap: 10px;
+
+  ion-button {
+    flex: 1;
+    --padding-top: 10px;
+    --padding-bottom: 10px;
+  }
 }
 
-// Radio redondeado moderno para cada campo `ion-input` de contorno.
-.login-field {
-  --border-radius: 12px;
-}
-
-// Banner de error global con icono y borde semántico carmesí.
+// Región de error: fondo y borde rojizos translúcidos sobre el color danger.
 .login-error {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
   border: 1px solid rgba(var(--ion-color-danger-rgb), 0.35);
   background: rgba(var(--ion-color-danger-rgb), 0.1);
   color: var(--ion-color-danger);
 
   ion-icon {
-    font-size: 20px;
+    font-size: 22px;
     flex-shrink: 0;
+  }
+
+  // Texto del error: peso seminegrita para máxima legibilidad.
+  p {
+    margin: 0;
+    font-size: 0.94rem;
+    font-weight: 600;
+    line-height: 1.45;
   }
 }
 
-// Párrafo del mensaje de error.
-.login-error-text {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-// Botones con transición GPU de respuesta inmediata al tacto.
+// Micro-interacción de pulsación en los botones propios de la página.
 .submit-button,
 .demo-button {
   transition: transform $press-duration $ease-out-strong;
 }
 
-// Caja informativa del modo demo separada visualmente del formulario.
-.demo-panel {
-  padding: 12px;
-  border-radius: 14px;
-  background: var(--app-surface-muted);
-  border: 1px dashed var(--app-surface-border);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-// Leyenda con las credenciales de prueba.
-.demo-hint {
-  margin: 0;
-  text-align: center;
-  font-size: 0.82rem;
-  color: var(--ion-color-medium);
-}
-
-// Compresión táctil al presionar respetando `prefers-reduced-motion`.
+// La respuesta de presión solo se aplica si el usuario NO pidió reducir
+// movimiento (WCAG 2.3.3 Animation from Interactions).
 @media (prefers-reduced-motion: no-preference) {
   .submit-button:active,
   .demo-button:active {

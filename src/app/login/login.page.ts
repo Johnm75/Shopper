@@ -1,227 +1,265 @@
 /**
- * @fileoverview Página de inicio de sesión (`LoginPage`).
+ * Controlador de la pantalla de inicio de sesión JWT de "App Shoper".
  *
- * @description
- * Pantalla de acceso autenticada mediante JWT con formulario reactivo de correo
- * y contraseña, validación accesible en tiempo real, conmutador de visibilidad
- * de contraseña, autocompletado rápido de credenciales académicas de prueba y
- * redirección post-login sanitizada contra *open redirects*.
+ * Responsabilidades principales:
+ * - Formulario reactivo con `username`, `password` y rol inicial (`customer`
+ *   | `seller`) gestionado mediante un `ion-segment`.
+ * - Botones de autocompletado rápido que rellenan las credenciales
+ *   demostrativas publicadas en `environment.demoCredentials`.
+ * - Delegación de la autenticación en `JwtAuthenticationService.login()`:
+ *   si la red falla, el servicio activa el token local `offline-fallback` y
+ *   esta vista lo comunica con un aviso informativo (toast accesible).
+ * - Navegación segura a `/tabs` tras el éxito, sanitizando `returnUrl` para
+ *   prevenir redirecciones abiertas (SEC-001 / OWASP).
  *
- * @author @ionic-ui-animator (Fase 5B — Desarrollo UI)
- * @author @quality-security-auditor (Fase 6 — accesibilidad y seguridad)
- * @phase SDD Fase 5B — Desarrollo de componentes y navegación
+ * ⚠️ AVISO DE SEGURIDAD (SEC-002): el token JWT es demostrativo, se almacena
+ * en texto plano vía `@capacitor/preferences` (sin Keystore/Keychain) y la
+ * app no solicita ni persiste PII financiera.
+ *
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-12
+ * @phase SDD Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-016)
  */
 
-// Núcleo de Angular: decorador de componente, inyección funcional y signals reactivas.
 import { Component, inject, signal } from '@angular/core';
-
-// Constructor y validadores tipados para formularios reactivos.
+// Constructor de formularios reactivos y validadores estándar de Angular.
 import { FormBuilder, Validators } from '@angular/forms';
-
-// Enrutador de Angular para leer `returnUrl` y navegar tras autenticar.
+// Router para la navegación programática y ActivatedRoute para leer `returnUrl`.
 import { ActivatedRoute, Router } from '@angular/router';
-
-// Registro explícito de iconos Ionicons para builds con tree-shaking.
+// Contrato de ciclo de vida de Ionic: anuncio accesible al entrar a la vista.
+import type { ViewDidEnter } from '@ionic/angular';
+// Controlador de toasts: aviso no bloqueante cuando entra el modo offline.
+import { ToastController } from '@ionic/angular';
+// Registro explícito de iconos (obligatorio en builds standalone/bundled).
 import { addIcons } from 'ionicons';
 import {
   alertCircleOutline,
-  camera,
+  briefcaseOutline,
   logInOutline,
-  sparklesOutline,
+  personOutline,
+  shieldCheckmarkOutline,
+  storefrontOutline,
+  wifiOutline,
 } from 'ionicons/icons';
 
-// Servicio de dominio encargado del login y persistencia de la sesión JWT.
-import { AuthJwtService } from '../services/auth-jwt.service';
-
-// Códigos tipados de error de autenticación.
-import type { AuthErrorCode } from '../models/auth.model';
-
-// Variables de entorno para habilitar la ayuda de demostración académica.
+// Servicio canónico de sesión JWT (login remoto + fallback offline).
+import { JwtAuthenticationService } from '../services/auth-jwt.service';
+// Código de error de dominio devuelto por el servicio al fallar la autenticación.
+import type { AuthenticationErrorCode } from '../models/auth.model';
+// Rol de usuario del dominio Shoper ('customer' | 'seller').
+import type { UserRole } from '../models/shoper.model';
+// Credenciales demostrativas y bandera de entorno para los atajos de login.
 import { environment } from '../../environments/environment';
+// Utilidad que sanitiza la ruta de retorno para evitar open-redirect.
+import { sanitizePostLoginRedirectUrl } from '../utils/return-url.util';
+// Utilidad que anuncia la vista a TalkBack/VoiceOver moviendo el foco al título.
+import { announcePageNavigation } from '../utils/a11y-announce.util';
 
-// Sanitizador de rutas internas contra ataques de redirección abierta.
-import { sanitizeReturnUrl } from '../utils/return-url.util';
-
-// Anunciador de navegación SPA para lectores de pantalla TalkBack y VoiceOver.
-import { announceScreen } from '../utils/a11y-announce.util';
-
-// Contrato de ciclo de vida Ionic al completarse la entrada de la vista.
-import type { ViewDidEnter } from '@ionic/angular';
-
-/**
- * Componente de la pantalla de inicio de sesión.
- */
 @Component({
-  // Selector del componente enrutado en `/login`.
   selector: 'app-login',
-  // Plantilla accesible con tarjeta elevada y botones de alto contraste.
   templateUrl: 'login.page.html',
-  // Hoja de estilos encapsulada con soporte de safe-area y micro-interacciones.
   styleUrls: ['login.page.scss'],
-  // Declarado en `LoginPageModule` junto a los Custom Elements standalone de Ionic 9.
+  // La app usa NgModule lazy-loading; la página se declara en `LoginPageModule`.
   standalone: false,
 })
 export class LoginPage implements ViewDidEnter {
-  /** Servicio de autenticación JWT. */
-  private readonly auth = inject(AuthJwtService);
-
-  /** Constructor de formularios reactivos sin valores nulos. */
-  private readonly fb = inject(FormBuilder);
-
-  /** Enrutador para redirigir hacia la galería una vez iniciada la sesión. */
+  // Servicio de autenticación JWT con fallback offline integrado.
+  private readonly authenticationService = inject(JwtAuthenticationService);
+  // Constructor del formulario reactivo de credenciales.
+  private readonly formBuilder = inject(FormBuilder);
+  // Router para navegar a `/tabs` tras el inicio de sesión exitoso.
   private readonly router = inject(Router);
+  // Ruta activa: permite leer el parámetro `returnUrl` inyectado por el guarda.
+  private readonly activatedRoute = inject(ActivatedRoute);
+  // Controlador de toasts para el aviso informativo de modo offline.
+  private readonly toastController = inject(ToastController);
 
-  /** Ruta activa desde la que se lee el parámetro opcional `returnUrl`. */
-  private readonly route = inject(ActivatedRoute);
+  /** Señal que bloquea el formulario mientras hay una petición en curso. */
+  readonly isSubmittingCredentials = signal<boolean>(false);
+  /** Señal que habilita los mensajes de validación tras el primer intento. */
+  readonly hasAttemptedSubmit = signal<boolean>(false);
+  /** Código de error normalizado devuelto por el servicio de autenticación. */
+  readonly authenticationErrorCode = signal<AuthenticationErrorCode | null>(null);
+  /** Mensaje de error legible mostrado en la región `role="alert"`. */
+  readonly authenticationErrorMessage = signal<string | null>(null);
 
-  /** `true` mientras la petición de inicio de sesión está en curso. */
-  readonly loading = signal<boolean>(false);
-
-  /** `true` después del primer intento de envío para activar mensajes por campo. */
-  readonly submitted = signal<boolean>(false);
-
-  /** Último código de error devuelto por el servicio de autenticación. */
-  readonly errorCode = signal<AuthErrorCode | null>(null);
-
-  /** Texto legible en español mostrado en el banner `role="alert"`. */
-  readonly errorMessage = signal<string | null>(null);
-
-  /** Controla si se muestra el bloque de acceso rápido de demostración (`REQ-014`). */
-  readonly showDemoHint = environment.useMockApi;
-
-  /** Credenciales de demostración configuradas en el entorno activo. */
+  /**
+   * Credenciales demostrativas expuestas a la plantilla para los botones de
+   * autocompletado rápido "Cliente" y "Vendedor" (nunca usar en producción).
+   */
   readonly demoCredentials = environment.demoCredentials;
 
   /**
-   * Formulario reactivo de credenciales con validación de formato y longitud mínima.
+   * Formulario reactivo tipado y no nulo:
+   * - `username`: obligatorio (DummyJSON exige usuario existente).
+   * - `password`: obligatorio con longitud mínima de 4 caracteres.
+   * - `role`: rol inicial sincronizado con el `ion-segment` de la vista.
    */
-  readonly form = this.fb.nonNullable.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
+  readonly credentialsForm = this.formBuilder.nonNullable.group({
+    username: ['', [Validators.required, Validators.minLength(3)]],
+    password: ['', [Validators.required, Validators.minLength(4)]],
+    role: this.formBuilder.nonNullable.control<UserRole>('customer'),
   });
 
   /**
-   * Registra en el catálogo global los iconos utilizados en la vista de acceso.
+   * Registra únicamente los iconos utilizados por esta vista para no inflar
+   * el bundle con la colección completa de Ionicons.
    */
   constructor() {
     addIcons({
-      camera,
-      logInOutline,
-      sparklesOutline,
       alertCircleOutline,
+      briefcaseOutline,
+      logInOutline,
+      personOutline,
+      shieldCheckmarkOutline,
+      storefrontOutline,
+      wifiOutline,
     });
   }
 
   /**
-   * Anuncia el título de la vista al lector de pantalla al entrar en `/login`.
+   * Ciclo de vida Ionic: al terminar la transición de entrada, anuncia la
+   * vista al lector de pantalla y ubica el foco en el encabezado principal.
    */
   ionViewDidEnter(): void {
-    announceScreen('Iniciar sesión — Galería de Fotos', 'login-title');
+    announcePageNavigation('Iniciar sesión — App Shoper', 'login-title');
   }
 
   /**
-   * Rellena automáticamente las credenciales académicas de demostración para agilizar pruebas.
+   * Autocompleta el formulario con las credenciales demostrativas del rol
+   * pulsado y sincroniza el `ion-segment` con ese mismo rol.
+   *
+   * @param role Rol elegido mediante los botones rápidos ("Cliente"/"Vendedor").
    */
-  fillDemoCredentials(): void {
-    // Carga el correo y contraseña del mock en el formulario y limpia errores previos.
-    this.form.setValue({
-      email: this.demoCredentials.email,
-      password: this.demoCredentials.password,
+  fillDemoCredentials(role: UserRole): void {
+    // Selecciona el par de credenciales publicado en `environment.demoCredentials`.
+    const credentials = this.demoCredentials[role];
+
+    // Rellena los tres controles de una sola vez (formulario no nulo).
+    this.credentialsForm.setValue({
+      username: credentials.username,
+      password: credentials.password,
+      role,
     });
-    this.errorCode.set(null);
-    this.errorMessage.set(null);
+
+    // Limpia errores previos: el autocompletado siempre introduce datos válidos.
+    this.authenticationErrorCode.set(null);
+    this.authenticationErrorMessage.set(null);
   }
 
   /**
-   * Procesa el envío del formulario autenticando al estudiante y navegando a su destino.
+   * Valida el formulario, autentica contra DummyJSON (o activa el fallback
+   * offline) y navega a la ruta interna sanitizada tras el éxito.
    */
-  async onSubmit(): Promise<void> {
-    // Evita envíos duplicados si ya hay una solicitud activa.
-    if (this.loading()) {
+  async submitLoginForm(): Promise<void> {
+    // Evita dobles envíos cuando ya existe una petición en vuelo.
+    if (this.isSubmittingCredentials()) {
       return;
     }
 
-    // Marca el formulario como enviado para revelar validaciones pendientes.
-    this.submitted.set(true);
-
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+    this.hasAttemptedSubmit.set(true);
+    if (this.credentialsForm.invalid) {
+      // Marca todos los controles para que la UI muestre los errores de validación.
+      this.credentialsForm.markAllAsTouched();
       return;
     }
 
-    // Activa el indicador de carga y limpia alertas anteriores.
-    this.loading.set(true);
-    this.errorCode.set(null);
-    this.errorMessage.set(null);
+    this.isSubmittingCredentials.set(true);
+    this.authenticationErrorCode.set(null);
+    this.authenticationErrorMessage.set(null);
 
     try {
-      // Solicita el token JWT y persiste la sesión en `@capacitor/preferences`.
-      await this.auth.login(this.form.getRawValue());
+      // El servicio intenta el login remoto; si la red falla, genera el token
+      // local `offline-fallback` y devuelve igualmente un registro de sesión.
+      const sessionRecord = await this.authenticationService.login(
+        this.credentialsForm.getRawValue()
+      );
 
-      // Sanitiza el destino post-login restringiéndolo a rutas internas bajo `/tabs`.
-      const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-      const target = sanitizeReturnUrl(returnUrl);
+      // Si la sesión proviene del modo offline, informa al usuario antes de
+      // navegar: la app funciona con datos locales deterministas (PAT-002).
+      if (sessionRecord.source === 'offline-fallback') {
+        await this.presentOfflineFallbackToast();
+      }
 
-      // Navega reemplazando `/login` en el historial para evitar volver atrás con sesión activa.
-      await this.router.navigateByUrl(target, { replaceUrl: true });
-    } catch (error) {
-      // Normaliza y traduce el código de fallo para presentarlo en el banner accesible.
-      const code: AuthErrorCode =
-        typeof error === 'string' ? (error as AuthErrorCode) : 'unexpected_error';
+      // Sanitiza `returnUrl` (previene open-redirect) y reemplaza la entrada
+      // del historial para que "atrás" no devuelva al formulario de login.
+      const requestedReturnUrl = this.activatedRoute.snapshot.queryParamMap.get('returnUrl');
+      const safeTargetUrl = sanitizePostLoginRedirectUrl(requestedReturnUrl);
+      await this.router.navigateByUrl(safeTargetUrl, { replaceUrl: true });
+    } catch (authError) {
+      // El servicio lanza códigos de dominio ('invalid_credentials', etc.).
+      const normalizedErrorCode: AuthenticationErrorCode =
+        typeof authError === 'string'
+          ? (authError as AuthenticationErrorCode)
+          : 'unexpected_error';
 
-      this.errorCode.set(code);
-      this.errorMessage.set(this.describeAuthError(code));
+      this.authenticationErrorCode.set(normalizedErrorCode);
+      this.authenticationErrorMessage.set(this.mapErrorCodeToUserMessage(normalizedErrorCode));
     } finally {
-      // Restablece el estado interactivo del botón principal.
-      this.loading.set(false);
+      // Libera el bloqueo del formulario tanto en éxito como en error.
+      this.isSubmittingCredentials.set(false);
     }
   }
 
   /**
-   * Obtiene el mensaje de validación en español asociado a un control del formulario.
+   * Devuelve el texto de error de un campo solo tras la interacción del
+   * usuario o un intento de envío (evita ruido visual al abrir la vista).
    *
-   * @param field Nombre del campo (`email` o `password`).
-   * @returns Texto de error o `undefined` cuando el campo es válido o aún no se tocó.
+   * @param fieldName Nombre del control consultado ('username' | 'password').
    */
-  fieldError(field: 'email' | 'password'): string | undefined {
-    const control = this.form.controls[field];
-
-    if (control.valid || !(control.touched || this.submitted())) {
+  getFieldValidationMessage(fieldName: 'username' | 'password'): string | undefined {
+    const control = this.credentialsForm.controls[fieldName];
+    if (control.valid || !(control.touched || this.hasAttemptedSubmit())) {
       return undefined;
     }
 
+    // Mensajes específicos por regla de validación incumplida.
     if (control.hasError('required')) {
-      return field === 'email'
-        ? 'El correo electrónico es obligatorio.'
+      return fieldName === 'username'
+        ? 'El nombre de usuario es obligatorio.'
         : 'La contraseña es obligatoria.';
     }
-    if (control.hasError('email')) {
-      return 'Introduce un correo electrónico válido (p. ej. nombre@dominio.com).';
-    }
     if (control.hasError('minlength')) {
-      return 'La contraseña debe tener al menos 8 caracteres.';
+      return fieldName === 'username'
+        ? 'El usuario debe tener al menos 3 caracteres.'
+        : 'La contraseña debe tener al menos 4 caracteres.';
     }
     return 'Revisa el valor introducido.';
   }
 
   /**
-   * Convierte un `AuthErrorCode` en un mensaje claro para el estudiante.
-   *
-   * @param code Código de error emitido por `AuthJwtService`.
-   * @returns Descripción amigable en español.
+   * Presenta un toast informativo cuando el login se resolvió con el token
+   * local de contingencia porque la API remota no está alcanzable.
    */
-  private describeAuthError(code: AuthErrorCode): string {
-    switch (code) {
+  private async presentOfflineFallbackToast(): Promise<void> {
+    const toast = await this.toastController.create({
+      message: 'Sin conexión con la API: sesión iniciada en modo offline con token demostrativo local.',
+      duration: 4000,
+      position: 'top',
+      color: 'warning',
+      icon: 'wifi-outline',
+      // El toast se anuncia solo; `aria-label` refuerza el contexto en TalkBack.
+      htmlAttributes: { 'aria-label': 'Aviso de modo offline activado' },
+    });
+    await toast.present();
+  }
+
+  /**
+   * Convierte el código interno de fallo de autenticación en un mensaje
+   * claro y accionable para el usuario final.
+   *
+   * @param errorCode Código de dominio devuelto por el servicio JWT.
+   */
+  private mapErrorCodeToUserMessage(errorCode: AuthenticationErrorCode): string {
+    switch (errorCode) {
       case 'invalid_credentials':
-        return 'Correo o contraseña incorrectos. Verifica tus datos e inténtalo de nuevo.';
+        return 'Usuario o contraseña incorrectos. Usa los botones de autocompletado rápido con las credenciales demostrativas.';
       case 'network_error':
-        return 'No se pudo contactar con el servidor. Comprueba tu conexión a internet.';
+        return 'No se pudo contactar con el servidor. El modo offline se activará automáticamente si la red sigue caída.';
       case 'token_expired':
         return 'La sesión ha caducado. Inicia sesión de nuevo.';
-      case 'unexpected_error':
-        return 'Ocurrió un error inesperado. Inténtalo más tarde.';
       default:
-        return 'No se pudo iniciar sesión.';
+        return 'Ocurrió un error inesperado al iniciar sesión.';
     }
   }
 }

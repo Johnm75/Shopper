@@ -1,37 +1,63 @@
 /**
- * @fileoverview Pruebas unitarias del contenedor de navegación `TabsPage`.
+ * Pruebas unitarias de `TabsPage`.
  *
- * @description
- * Verifica que la barra inferior de pestañas se instancia y expone los tres
- * destinos accesibles (`Tab 1`, `Galería` y `Cuenta`) con sus enlaces esperados.
+ * Valida que el contenedor muestre únicamente las pestañas e indicadores
+ * correspondientes al rol con el que se inició sesión (Cliente vs. Tienda),
+ * sin exponer ambas vistas ni permitir cambio simultáneo dentro de `/tabs`.
  *
- * @author @quality-security-auditor (Fase 6)
- * @phase SDD Fase 6 — Calidad, Accesibilidad y Seguridad
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-18
  */
 
-// Utilidades de pruebas de componentes de Angular.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { CUSTOM_ELEMENTS_SCHEMA, signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 
-// Enrutador de pruebas para resolver las directivas internas de `<ion-tabs>`.
-import { RouterModule } from '@angular/router';
-
-// Módulo de feature que declara `TabsPage`.
 import { TabsPageModule } from './tabs.module';
-
-// Componente contenedor bajo prueba.
 import { TabsPage } from './tabs.page';
+import { JwtAuthenticationService } from '../services/auth-jwt.service';
+import { CartService } from '../services/cart.service';
+import { OrderService } from '../services/order.service';
+import { CatalogService } from '../services/catalog.service';
+import type { UserRole } from '../models/shoper.model';
 
 describe('TabsPage', () => {
-  // Instancia del componente bajo prueba.
   let component: TabsPage;
-
-  // Fixture que encapsula el DOM renderizado.
   let fixture: ComponentFixture<TabsPage>;
+  let activeRoleSignal: ReturnType<typeof signal<UserRole>>;
 
   beforeEach(async () => {
-    // Compila el módulo de pestañas con un router raíz en memoria.
+    TestBed.resetTestingModule();
+    activeRoleSignal = signal<UserRole>('customer');
+
     await TestBed.configureTestingModule({
-      imports: [TabsPageModule, RouterModule.forRoot([])],
+      imports: [TabsPageModule],
+      providers: [
+        provideRouter([]),
+        {
+          provide: JwtAuthenticationService,
+          useValue: {
+            activeRole: activeRoleSignal,
+            sessionSignal: signal({ firstName: 'Demo', username: 'demo' }),
+          },
+        },
+        {
+          provide: CartService,
+          useValue: { totalUnits: signal(2), loadCart: vi.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: OrderService,
+          useValue: {
+            ordersSignal: signal([{ currentStatus: 'Pagado' }, { currentStatus: 'Entregado' }]),
+            loadOrders: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: CatalogService,
+          useValue: { loadCatalog: vi.fn().mockResolvedValue(undefined) },
+        },
+      ],
+      schemas: [CUSTOM_ELEMENTS_SCHEMA],
     }).compileComponents();
 
     fixture = TestBed.createComponent(TabsPage);
@@ -39,15 +65,39 @@ describe('TabsPage', () => {
     fixture.detectChanges();
   });
 
-  it('debe crear el contenedor de pestañas y renderizar los 3 botones de navegación', () => {
-    // Verifica que la instancia se construyó correctamente.
-    expect(component).toBeTruthy();
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    vi.restoreAllMocks();
+  });
 
-    // Verifica que existen los tres botones de pestaña con iconos decorativos ocultos a lectores.
+  it('debe mostrar 4 pestañas (Catálogo, Carrito, Mis compras, Usuario) cuando ingresa como Cliente', () => {
+    expect(component).toBeTruthy();
     const host = fixture.nativeElement as HTMLElement;
-    const buttons = host.querySelectorAll('ion-tab-button');
-    expect(buttons.length).toBe(3);
-    expect(buttons[1]?.getAttribute('tab')).toBe('tab2');
-    expect(buttons[2]?.getAttribute('tab')).toBe('tab3');
+    const tabButtons = host.querySelectorAll('ion-tab-button');
+    expect(tabButtons.length).toBe(4);
+    expect(host.textContent).toContain('Catálogo');
+    expect(host.textContent).toContain('Carrito');
+    expect(host.textContent).toContain('Mis compras');
+    expect(host.textContent).toContain('Usuario');
+    expect(host.querySelector('ion-segment')).toBeNull();
+  });
+
+  it('debe ocultar Carrito y mostrar Inventario, Pedidos y Usuario cuando ingresa como Tienda', () => {
+    activeRoleSignal.set('seller');
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const tabButtons = host.querySelectorAll('ion-tab-button');
+    expect(tabButtons.length).toBe(3);
+    expect(host.textContent).toContain('Inventario');
+    expect(host.textContent).toContain('Pedidos');
+    expect(host.textContent).toContain('Usuario');
+    expect(host.textContent).not.toContain('Carrito');
+    expect(host.textContent).toContain('Tienda');
+  });
+
+  it('debe exponer aria-label en la barra de pestañas', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('ion-tab-bar[aria-label]')).toBeTruthy();
   });
 });

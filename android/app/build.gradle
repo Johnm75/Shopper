@@ -1,36 +1,58 @@
+/**
+ * Configuración de compilación del módulo Android de App Shoper.
+ * Define el namespace, applicationId, versiones de SDK y dependencias
+ * necesarias para empaquetar la aplicación híbrida Ionic/Angular/Capacitor.
+ *
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-13
+ * @phase Fase 8 SDD — Release Nativo Android
+ */
+
+// Aplica el plugin de aplicación Android.
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.example.photo.gallery"
+    // Namespace y applicationId alineados con capacitor.config.ts (appId: 'com.abp.appshoper').
+    namespace "com.abp.appshoper"
     compileSdk rootProject.ext.compileSdkVersion
+
     defaultConfig {
-        applicationId "com.example.photo.gallery"
+        applicationId "com.abp.appshoper"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
         aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            // Archivos y directorios que se omiten del empaquetado de assets;
+            // configuración adaptada para aplicaciones web modernas híbridas.
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
     }
 }
 
 repositories {
+    // Directorios locales de bibliotecas (.jar/.aar) compartidos por plugins.
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
     }
 }
 
 dependencies {
+    // Dependencias base de Android y de Capacitor.
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
@@ -42,8 +64,10 @@ dependencies {
     implementation project(':capacitor-cordova-android-plugins')
 }
 
+// Incluye la configuración de plugins generada por Capacitor.
 apply from: 'capacitor.build.gradle'
 
+// Aplica el plugin de Google Services solo si existe el archivo de configuración.
 try {
     def servicesJSON = file('google-services.json')
     if (servicesJSON.text) {

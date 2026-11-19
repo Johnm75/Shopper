@@ -1,72 +1,48 @@
 /**
- * @fileoverview Configuración global de la aplicación Angular standalone.
+ * Proveedores raíz de Angular para "App Shoper".
  *
- * @description
- * Registra los proveedores transversales del proyecto: detección de cambios por
- * zonas, enrutador con `IonicRouteStrategy` (necesario para transiciones y caché
- * de pila entre pestañas), inicialización de Custom Elements standalone de
- * Ionic 9 (`provideIonicAngular`), cliente HTTP con interceptores funcionales
- * (`jwtInterceptor` + `mockApiInterceptor`) e hidratación temprana de la sesión.
+ * Centraliza la configuración de Ionic, la estrategia de reutilización de rutas,
+ * el enrutador, el cliente HTTP con el interceptor JWT y la hidratación inicial
+ * de la sesión desde almacenamiento nativo.
  *
- * @author @capacitor-architect (Fase 3 / Fase 5A)
- * @author @ionic-ui-animator (Fase 5B — IonicRouteStrategy y Custom Elements)
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-12
  * @phase SDD Fase 3 — Arquitectura Capacitor
  */
 
-// Proveedores nucleares de Angular para zonas, configuración e inicialización temprana.
 import {
   ApplicationConfig,
   inject,
   provideAppInitializer,
   provideZoneChangeDetection,
 } from '@angular/core';
-
-// Enrutador de Angular y contrato de reutilización de rutas para pestañas móviles.
+// Proveedores de enrutamiento y estrategia de reutilización de vistas.
 import { RouteReuseStrategy, provideRouter } from '@angular/router';
-
-// Cliente HTTP reactivo con soporte para interceptores funcionales encadenados.
+// Cliente HTTP con registro funcional de interceptores.
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-
-// Inicializador oficial de Ionic 9 standalone y estrategia de caché de vistas.
+// Estrategia de Ionic para conservar vistas en caché y proveedor Angular de Ionic.
 import { IonicRouteStrategy, provideIonicAngular } from '@ionic/angular';
 
-// Árbol principal de rutas de la aplicación (`/login` y `/tabs/**`).
-import { routes } from './app.routes';
+// Definición de rutas de la aplicación.
+import { appRoutes } from './app.routes';
+// Servicio de sesión JWT, necesario para la hidratación temprana.
+import { JwtAuthenticationService } from './services/auth-jwt.service';
+// Interceptor funcional que adjunta el token Bearer en peticiones a la API.
+import { jwtAuthInterceptor } from './interceptors/jwt.interceptor';
 
-// Servicio singleton de autenticación JWT que restaura la sesión al arrancar.
-import { AuthJwtService } from './services/auth-jwt.service';
-
-// Interceptores HTTP: inyección de Bearer token y backend simulado offline.
-import { jwtInterceptor } from './interceptors/jwt.interceptor';
-import { mockApiInterceptor } from './interceptors/mock-api.interceptor';
-
-/**
- * Configuración raíz inyectada en `bootstrapApplication(AppComponent, appConfig)`.
- *
- * Orden deliberado de interceptores: `jwtInterceptor` corre antes que
- * `mockApiInterceptor` para que el mock valide la cabecera `Authorization`.
- */
 export const appConfig: ApplicationConfig = {
   providers: [
-    // Mantiene sincronizada la vista tras eventos asíncronos de plugins nativos Capacitor.
+    // Agrupa eventos del DOM en un mismo ciclo de detección de cambios en móvil.
     provideZoneChangeDetection({ eventCoalescing: true }),
-
-    // Conserva vivas las pestañas visitadas y habilita animaciones nativas de Ionic.
+    // Conserva las vistas de pestañas en caché al navegar hacia atrás.
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
-
-    // Registra el árbol de navegación principal de la aplicación.
-    provideRouter(routes),
-
-    // Inicializa Ionic 9 (modo adaptativo Material/Cupertino y soporte de Custom Elements).
+    // Configura el enrutador con las rutas canónicas de la aplicación.
+    provideRouter(appRoutes),
+    // Inicializa Ionic con configuración por defecto.
     provideIonicAngular({}),
-
-    // Provee `HttpClient` con la cadena de seguridad JWT seguida del mock académico.
-    provideHttpClient(withInterceptors([jwtInterceptor, mockApiInterceptor])),
-
-    // Hidrata el token guardado en `@capacitor/preferences` antes de evaluar los guards.
-    provideAppInitializer(() => {
-      const auth = inject(AuthJwtService);
-      return auth.hydrate();
-    }),
+    // Cliente HTTP con el interceptor JWT para autorización Bearer.
+    provideHttpClient(withInterceptors([jwtAuthInterceptor])),
+    // Hidrata la sesión persistida antes de que Angular resuelva la ruta inicial.
+    provideAppInitializer(() => inject(JwtAuthenticationService).restorePersistedSession()),
   ],
 };

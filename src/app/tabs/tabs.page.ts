@@ -1,47 +1,89 @@
 /**
- * @fileoverview Componente contenedor de la navegación inferior por pestañas (`TabsPage`).
- *
- * @description
- * Aloja `<ion-tabs>` e `<ion-tab-bar>` registrando explícitamente los iconos
- * `home` (Inicio), `images` (Galería) y `person` (Cuenta) en el registro global
- * de Ionicons para garantizar su renderizado con tree-shaking activo.
- *
- * @author @ionic-ui-animator (Fase 4 / Fase 5B — Diseño y Navegación)
- * @phase SDD Fase 4 — Diseño Ionic y UX móvil nativa
+ * ===========================================================================
+ * APP SHOPER — Contenedor de pestañas bloqueado al rol de ingreso
+ * ===========================================================================
+ * Propósito : Alojar la navegación inferior correspondiente ÚNICAMENTE al rol
+ *             con el que el usuario inició sesión:
+ *             - Cliente (`customer`): Catálogo, Carrito (con badge) y Mis compras.
+ *             - Tienda (`seller`): Inventario y Pedidos (sin Carrito ni
+ *               conmutador simultáneo entre vistas).
+ * Autor     : John Fredy Marciales Morales
+ * Fecha     : 2026-11-18
+ * ===========================================================================
  */
 
-// Decorador de componente del núcleo de Angular.
-import { Component } from '@angular/core';
-
-// Registro explícito de iconos de Ionicons para compilaciones optimizadas.
+import { Component, computed, inject } from '@angular/core';
+import type { ViewWillEnter } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { home, images, person } from 'ionicons/icons';
+import {
+  briefcaseOutline,
+  cartOutline,
+  personCircleOutline,
+  personOutline,
+  receiptOutline,
+  storefrontOutline,
+} from 'ionicons/icons';
 
-/**
- * Componente raíz de la barra de pestañas (`TabsPageModule`).
- */
+import { JwtAuthenticationService } from '../services/auth-jwt.service';
+import { CartService } from '../services/cart.service';
+import { OrderService } from '../services/order.service';
+import { CatalogService } from '../services/catalog.service';
+
 @Component({
-  // Selector del layout de navegación por pestañas.
   selector: 'app-tabs',
-  // Plantilla con `<ion-tabs>` y los tres botones inferiores.
   templateUrl: 'tabs.page.html',
-  // Hoja de estilos del contenedor de pestañas.
   styleUrls: ['tabs.page.scss'],
-  // Declarado dentro de `TabsPageModule`.
   standalone: false,
 })
-export class TabsPage {
-  /**
-   * Registra los iconos de las tres pestañas principales al crear el contenedor.
-   */
+export class TabsPage implements ViewWillEnter {
+  private readonly authenticationService = inject(JwtAuthenticationService);
+  private readonly cartService = inject(CartService);
+  private readonly orderService = inject(OrderService);
+  private readonly catalogService = inject(CatalogService);
+
+  /** Rol activo fijo para la sesión ingresada ('customer' | 'seller'). */
+  readonly activeRole = this.authenticationService.activeRole;
+
+  /** Nombre visible del usuario autenticado para el saludo del encabezado. */
+  readonly displayName = computed(
+    () => this.authenticationService.sessionSignal()?.firstName ?? ''
+  );
+
+  /** Etiqueta de solo lectura del modo activo según la cuenta ingresada. */
+  readonly activeRoleLabel = computed(() =>
+    this.activeRole() === 'customer' ? 'Cliente' : 'Tienda'
+  );
+
+  /** Insignia de tab2: unidades totales del carrito (`totalUnits`). */
+  readonly cartUnits = this.cartService.totalUnits;
+
+  /** Insignia de tab3: número de pedidos activos (no entregados). */
+  readonly activeOrdersCount = computed(
+    () =>
+      this.orderService.ordersSignal().filter(order => order.currentStatus !== 'Entregado')
+        .length
+  );
+
   constructor() {
     addIcons({
-      // Pestaña 1: resumen e inicio rápido.
-      home,
-      // Pestaña 2: cuadrícula y cámara de la galería.
-      images,
-      // Pestaña 3: perfil de sesión y cierre de sesión.
-      person,
+      briefcaseOutline,
+      cartOutline,
+      personCircleOutline,
+      personOutline,
+      receiptOutline,
+      storefrontOutline,
     });
+  }
+
+  /**
+   * Hidrata catálogo, pedidos y carrito (solo en modo Cliente) desde
+   * `shopper_db` en cada entrada al contenedor de pestañas.
+   */
+  ionViewWillEnter(): void {
+    void this.catalogService.loadCatalog();
+    void this.orderService.loadOrders();
+    if (this.activeRole() === 'customer') {
+      void this.cartService.loadCart();
+    }
   }
 }

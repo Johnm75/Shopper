@@ -1,70 +1,54 @@
 /**
- * @fileoverview Módulo de feature de la pestaña «Inicio» (`Tab1PageModule`).
+ * Módulo de la pestaña «Catálogo / Inventario» (`Tab1Page`).
  *
- * @description
- * Declara `Tab1Page` importando los Custom Elements standalone de `@ionic/angular`
- * usados en el panel de bienvenida, garantizando que tarjetas, botones, chips y
- * barra superior se hidraten y estilicen correctamente en Ionic 9.
+ * Declara la vista dual Cliente/Vendedor y registra los custom elements de
+ * Ionic empleados: rejilla responsive de tarjetas de producto, spinner de
+ * carga e insumos del formulario reactivo de alta/edición del vendedor.
  *
- * @author @ionic-ui-animator (Fase 5B)
- * @author @quality-security-auditor (Fase 6 — auditoría de comentarios)
- * @phase SDD Fase 5B — Desarrollo de componentes y navegación
+ * @author John Fredy Marciales Morales
+ * @date 2026-11-12
+ * @phase SDD Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-018)
  */
 
-// Decorador NgModule del núcleo de Angular.
 import { NgModule } from '@angular/core';
-
-// Directivas comunes de Angular.
+// Directivas base y pipe `CurrencyPipe` (`| currency`) usado en los precios.
 import { CommonModule } from '@angular/common';
-
-// Módulo de formularios estándar de Angular.
-import { FormsModule } from '@angular/forms';
-
-// Módulo de enrutamiento para directivas `routerLink` en acciones rápidas.
-import { RouterModule } from '@angular/router';
-
-// Componentes standalone de Ionic 9 empleados en la vista de inicio.
+// Infraestructura de formularios reactivos del formulario del vendedor.
+import { ReactiveFormsModule } from '@angular/forms';
+// Custom elements de Ionic usados en la plantilla del catálogo/inventario.
 import {
   IonButton,
-  IonChip,
+  IonCol,
   IonContent,
-  IonHeader,
+  IonGrid,
   IonIcon,
-  IonLabel,
-  IonTitle,
-  IonToolbar,
+  IonInput,
+  IonItem,
+  IonRow,
+  IonSpinner,
 } from '@ionic/angular';
 
-// Componente de página correspondiente a la pestaña 1.
+// Página del catálogo/inventario declarada por este módulo perezoso.
 import { Tab1Page } from './tab1.page';
-
-// Módulo compartido del contenedor exploratorio conservado por compatibilidad estructural.
-import { ExploreContainerComponentModule } from '../explore-container/explore-container.module';
-
-// Módulo de enrutamiento hijo de la pestaña 1.
+// Rutas hijas que vinculan `/tabs/tab1` con `Tab1Page`.
 import { Tab1PageRoutingModule } from './tab1-routing.module';
 
-/**
- * NgModule de la pestaña «Inicio».
- */
+// Ensambla la rejilla de productos y el formulario reactivo del vendedor.
 @NgModule({
-  // Dependencias necesarias para renderizar la vista de bienvenida y sus controles Ionic.
   imports: [
     CommonModule,
-    FormsModule,
-    RouterModule,
-    ExploreContainerComponentModule,
+    ReactiveFormsModule,
     Tab1PageRoutingModule,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
     IonContent,
+    IonGrid,
+    IonRow,
+    IonCol,
     IonButton,
     IonIcon,
-    IonChip,
-    IonLabel,
+    IonItem,
+    IonInput,
+    IonSpinner,
   ],
-  // Declara el componente de vista `Tab1Page`.
   declarations: [Tab1Page],
 })
 export class Tab1PageModule {}
