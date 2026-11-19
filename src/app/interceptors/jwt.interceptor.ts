@@ -1,76 +1,51 @@
 /**
- * Interceptor funcional HTTP que inyecta `Authorization: Bearer <token>` en peticiones
- * dirigidas a la API REST propia y revoca la sesión ante respuestas `401 Unauthorized`.
+ * Interceptor funcional HTTP que inyecta `Authorization: Bearer <token>`
+ * en las peticiones dirigidas a `environment.apiBaseUrl`, excluyendo el
+ * endpoint de autenticación `/auth/login`.
  *
  * @author John Fredy Marciales Morales
- * @date 2026-11-06
+ * @date 2026-11-12
+ * @phase SDD Fase 3 — Arquitectura Capacitor
  */
 
 import type { HttpInterceptorFn } from '@angular/common/http';
-import { HttpErrorResponse, HttpRequest } from '@angular/common/http';
+import { HttpRequest } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { catchError, from, switchMap } from 'rxjs';
 
+// Servicio de sesión JWT; se lee de forma síncrona mediante señales.
 import { JwtAuthenticationService } from '../services/auth-jwt.service';
-import { environment } from '../../environments/environment';
-import { isAuthenticationLoginEndpoint, isTrustedApiEndpoint } from '../utils/api-url.util';
-
-let isSignOutInProgress = false;
+// Utilidad para determinar si la petición va hacia la API autorizada.
+import { isApiBaseUrl } from '../utils/api-url.util';
 
 /**
- * Adjunta el token Bearer solo hacia orígenes confiables y cierra sesión si el backend responde `401`.
+ * Interceptor que adjunta el token Bearer cuando corresponde.
  */
 export const jwtAuthInterceptor: HttpInterceptorFn = (request, next) => {
   const authenticationService = inject(JwtAuthenticationService);
 
-  if (!isTrustedApiEndpoint(request.url, environment.apiBaseUrl)) {
+  // Solo intercepta peticiones al origen base de la API.
+  if (!isApiBaseUrl(request)) {
     return next(request);
   }
 
-  return from(authenticationService.getValidAccessToken()).pipe(
-    switchMap(accessToken => {
-      const authenticatedRequest = accessToken
-        ? attachBearerTokenHeader(request, accessToken)
-        : request;
-      return next(authenticatedRequest);
-    }),
-    catchError(httpError => {
-      if (
-        httpError instanceof HttpErrorResponse &&
-        httpError.status === 401 &&
-        !isAuthenticationLoginEndpoint(request.url, environment.apiBaseUrl)
-      ) {
-        triggerSingleSessionSignOut(authenticationService);
-      }
-      throw httpError;
-    })
-  );
-};
+  // No adjunta token al endpoint de login para evitar enviar credenciales con Bearer.
+  const requestPath = new URL(request.url).pathname;
+  if (requestPath === '/auth/login') {
+    return next(request);
+  }
 
-/**
- * Clona la petición inmutable agregando la cabecera estándar `Authorization: Bearer`.
- */
-function attachBearerTokenHeader(
-  request: HttpRequest<unknown>,
-  accessToken: string
-): HttpRequest<unknown> {
-  return request.clone({
+  // Lee el token actual de la señal reactiva de sesión.
+  const accessToken = authenticationService.sessionSignal()?.accessToken;
+  if (!accessToken) {
+    return next(request);
+  }
+
+  // Clona la petición agregando la cabecera de autorización estándar.
+  const authenticatedRequest = request.clone({
     setHeaders: {
       Authorization: `Bearer ${accessToken}`,
     },
   });
-}
 
-/**
- * Evita redirecciones duplicadas si varias peticiones protegidas concurren y reciben `401`.
- */
-function triggerSingleSessionSignOut(authenticationService: JwtAuthenticationService): void {
-  if (isSignOutInProgress) {
-    return;
-  }
-
-  isSignOutInProgress = true;
-  void authenticationService.signOutSession({ navigateToLogin: true }).finally(() => {
-    isSignOutInProgress = false;
-  });
-}
+  return next(authenticatedRequest);
+};

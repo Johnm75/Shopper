@@ -1,9 +1,59 @@
 /**
- * Estilos de barra de pestañas gestionados desde `src/global.scss`.
- *
- * @author John Fredy Marciales Morales
- * @date 2026-11-06
+ * ===========================================================================
+ * APP SHOPER — Estilos del contenedor de pestañas (`TabsPage`)
+ * ===========================================================================
+ * Presupuesto CSS: anyComponentStyle <= 2.00 kB.
+ * ===========================================================================
  */
 
-// Los bordes, sombras y altura mínima de `ion-tab-bar` se aplican de forma centralizada en `global.scss`
-// para mantener consistencia entre temas claro y oscuro sin duplicar selectores por componente.
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+ion-tabs {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.tabs-header-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tabs-role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--shoper-radius-pill);
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: rgba(var(--ion-color-primary-rgb), 0.12);
+  color: var(--ion-color-primary);
+
+  ion-icon {
+    font-size: 16px;
+  }
+
+  &--seller {
+    background: rgba(var(--ion-color-secondary-rgb), 0.14);
+    color: var(--shoper-seller-pill-fg);
+  }
+}
+
+.tabs-user-note {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ion-color-medium);
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .tabs-user-note {
+    display: none;
+  }
+}

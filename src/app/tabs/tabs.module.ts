@@ -1,35 +1,42 @@
 /**
- * Módulo del contenedor de navegación inferior por pestañas.
+ * Módulo del contenedor de navegación inferior por pestañas de "App Shoper".
  *
  * @author John Fredy Marciales Morales
- * @date 2026-11-06
+ * @date 2026-11-18
  */
 
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import {
+  IonBadge,
+  IonHeader,
   IonIcon,
   IonLabel,
+  IonNote,
   IonTabBar,
   IonTabButton,
   IonTabs,
+  IonTitle,
+  IonToolbar,
 } from '@ionic/angular';
 
 import { TabsPageRoutingModule } from './tabs-routing.module';
 import { TabsPage } from './tabs.page';
 
-// Ensambla los controles de `IonTabs` que alojan la navegación principal de la app.
 @NgModule({
   imports: [
     CommonModule,
-    FormsModule,
     TabsPageRoutingModule,
+    IonHeader,
+    IonToolbar,
+    IonTitle,
+    IonNote,
+    IonLabel,
     IonTabs,
     IonTabBar,
     IonTabButton,
     IonIcon,
-    IonLabel,
+    IonBadge,
   ],
   declarations: [TabsPage],
 })

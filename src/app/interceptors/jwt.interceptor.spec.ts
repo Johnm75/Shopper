@@ -1,93 +1,133 @@
 /**
- * Pruebas unitarias de `jwtAuthInterceptor`.
+ * Pruebas unitarias de `jwtAuthInterceptor` (Fase 6 SDD — TASK-020).
+ *
+ * Verifica la inyección de `Authorization: Bearer` únicamente hacia
+ * `environment.apiBaseUrl` y la exclusión explícita del endpoint `/auth/login`.
  *
  * @author John Fredy Marciales Morales
- * @date 2026-11-06
+ * @date 2026-11-12
+ * @phase SDD Fase 6 — Calidad, Pruebas y Auditoría
  */
 
+// Utilidades de Angular Testing para configurar un cliente HTTP con interceptores.
 import { TestBed } from '@angular/core/testing';
+// Cliente HTTP real que atravesará el interceptor bajo prueba.
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
+// Backend de pruebas que captura las peticiones emitidas por HttpClient.
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+// Señal usada para simular el estado reactivo de la sesión autenticada.
+import { signal } from '@angular/core';
+// Utilidad RxJS para convertir la primera emisión del observable en una promesa.
 import { firstValueFrom } from 'rxjs';
 
+// Interceptor funcional que debe adjuntar el token Bearer según las reglas de seguridad.
 import { jwtAuthInterceptor } from './jwt.interceptor';
+// Servicio de autenticación del que el interceptor lee la sesión actual.
 import { JwtAuthenticationService } from '../services/auth-jwt.service';
+// Entorno con el origen base autorizado de la API.
 import { environment } from '../../environments/environment';
+// Contrato de sesión persistida para tipar el doble de prueba.
+import type { PersistedSessionRecord } from '../models/shoper.model';
 
+// Suite de pruebas del interceptor JWT.
 describe('jwtAuthInterceptor', () => {
+  // Cliente HTTP configurado con el interceptor a evaluar.
   let httpClient: HttpClient;
+  // Controlador que permite inspeccionar las cabeceras de las peticiones.
   let httpController: HttpTestingController;
-  let authenticationStub: {
-    getValidAccessToken: ReturnType<typeof vi.fn>;
-    signOutSession: ReturnType<typeof vi.fn>;
+  // Señal simulada que representa la sesión activa expuesta por el servicio.
+  let sessionSignal: ReturnType<typeof signal<PersistedSessionRecord | null>>;
+
+  // Sesión de ejemplo con token válido para los escenarios que requieren autorización.
+  const activeSession: PersistedSessionRecord = {
+    accessToken: 'jwt-token-demo',
+    refreshToken: 'refresh-token-demo',
+    username: 'emilys',
+    firstName: 'Emily',
+    lastName: 'Stone',
+    role: 'customer',
+    source: 'remote-api',
+    schemaVersion: 1,
   };
 
+  // Configura el entorno de pruebas con un servicio de sesión simulado.
   beforeEach(() => {
-    authenticationStub = {
-      getValidAccessToken: vi.fn().mockResolvedValue('jwt-seguro-demo'),
-      signOutSession: vi.fn().mockResolvedValue(undefined),
-    };
+    // Inicializa la señal con una sesión autenticada por defecto.
+    sessionSignal = signal<PersistedSessionRecord | null>(activeSession);
 
+    // Registra el cliente HTTP con el interceptor y el doble del servicio de sesión.
     TestBed.configureTestingModule({
       providers: [
-        { provide: JwtAuthenticationService, useValue: authenticationStub },
+        { provide: JwtAuthenticationService, useValue: { sessionSignal } },
         provideHttpClient(withInterceptors([jwtAuthInterceptor])),
         provideHttpClientTesting(),
       ],
     });
 
+    // Obtiene las instancias necesarias para ejecutar y observar las peticiones.
     httpClient = TestBed.inject(HttpClient);
     httpController = TestBed.inject(HttpTestingController);
   });
 
+  // Verifica que no queden peticiones pendientes y limpia los espías.
   afterEach(() => {
+    // Garantiza que todas las solicitudes hayan sido atendidas.
     httpController.verify();
+    // Restaura los mocks de Vitest al estado inicial.
     vi.restoreAllMocks();
   });
 
-  it('debe adjuntar Authorization Bearer en peticiones dirigidas a environment.apiBaseUrl', async () => {
-    const requestPromise = firstValueFrom(httpClient.get(`${environment.apiBaseUrl}/photos`));
+  // Debe adjuntar Authorization Bearer en peticiones al origen autorizado distinto de /auth/login.
+  it('debe adjuntar Authorization: Bearer en peticiones dirigidas a environment.apiBaseUrl', async () => {
+    // Emite una petición GET protegida hacia el origen autorizado.
+    const requestPromise = firstValueFrom(httpClient.get(`${environment.apiBaseUrl}/products?limit=20`));
+    // Cede el ciclo para que HttpClient emita la solicitud interceptada.
     await Promise.resolve();
 
-    const pendingRequest = httpController.expectOne(`${environment.apiBaseUrl}/photos`);
-    expect(pendingRequest.request.headers.get('Authorization')).toBe('Bearer jwt-seguro-demo');
-    pendingRequest.flush([]);
+    // Captura la petición y comprueba la cabecera de autorización.
+    const pendingRequest = httpController.expectOne(`${environment.apiBaseUrl}/products?limit=20`);
+    expect(pendingRequest.request.headers.get('Authorization')).toBe('Bearer jwt-token-demo');
+    // Responde con un cuerpo vacío para completar el observable.
+    pendingRequest.flush({});
 
+    // Espera la resolución final de la promesa.
     await requestPromise;
   });
 
-  it('NO debe adjuntar el token a dominios externos o rutas ajenas', async () => {
-    const externalUrl = `${environment.apiBaseUrl}.evil.example.org/photos`;
-    const siblingPathUrl = 'https://api.example.com/v10/photos';
+  // No debe adjuntar el token al endpoint de login aunque pertenezca al origen autorizado.
+  it('no debe adjuntar Authorization al endpoint /auth/login', async () => {
+    // Emite una petición POST al endpoint de autenticación.
+    const requestPromise = firstValueFrom(
+      httpClient.post(`${environment.apiBaseUrl}/auth/login`, { username: 'u', password: 'p' })
+    );
+    // Permite que la solicitud sea registrada por el controlador.
+    await Promise.resolve();
 
-    const firstCall = firstValueFrom(httpClient.get(externalUrl));
-    const secondCall = firstValueFrom(httpClient.get(siblingPathUrl));
+    // Captura la petición de login y verifica que no incluya la cabecera Bearer.
+    const pendingRequest = httpController.expectOne(`${environment.apiBaseUrl}/auth/login`);
+    expect(pendingRequest.request.headers.has('Authorization')).toBe(false);
+    // Responde para completar la petición.
+    pendingRequest.flush({});
 
-    const firstReq = httpController.expectOne(externalUrl);
-    const secondReq = httpController.expectOne(siblingPathUrl);
-
-    expect(firstReq.request.headers.has('Authorization')).toBe(false);
-    expect(secondReq.request.headers.has('Authorization')).toBe(false);
-
-    firstReq.flush({});
-    secondReq.flush({});
-    await Promise.all([firstCall, secondCall]);
+    // Espera la finalización del flujo.
+    await requestPromise;
   });
 
-  it('debe cerrar sesión ante un 401 en recursos protegidos pero no en /auth/login', async () => {
-    const loginCall = firstValueFrom(httpClient.post(`${environment.apiBaseUrl}/auth/login`, {}));
-    await Promise.resolve();
-    const loginReq = httpController.expectOne(`${environment.apiBaseUrl}/auth/login`);
-    loginReq.flush({ error: 'invalid' }, { status: 401, statusText: 'Unauthorized' });
-    await expect(loginCall).rejects.toBeTruthy();
-    expect(authenticationStub.signOutSession).not.toHaveBeenCalled();
+  // No debe adjuntar el token a orígenes externos distintos de apiBaseUrl.
+  it('no debe adjuntar Authorization a orígenes externos o no autorizados', async () => {
+    // Define un origen externo que no debe recibir credenciales.
+    const externalUrl = 'https://fakestoreapi.com/products';
 
-    const protectedCall = firstValueFrom(httpClient.get(`${environment.apiBaseUrl}/photos`));
+    // Emite la petición hacia el dominio externo.
+    const requestPromise = firstValueFrom(httpClient.get(externalUrl));
     await Promise.resolve();
-    const protectedReq = httpController.expectOne(`${environment.apiBaseUrl}/photos`);
-    protectedReq.flush({ error: 'expired' }, { status: 401, statusText: 'Unauthorized' });
-    await expect(protectedCall).rejects.toBeTruthy();
-    expect(authenticationStub.signOutSession).toHaveBeenCalledTimes(1);
-    expect(authenticationStub.signOutSession).toHaveBeenCalledWith({ navigateToLogin: true });
+
+    // Comprueba que la cabecera Authorization esté ausente.
+    const pendingRequest = httpController.expectOne(externalUrl);
+    expect(pendingRequest.request.headers.has('Authorization')).toBe(false);
+    pendingRequest.flush([]);
+
+    // Finaliza la promesa asociada.
+    await requestPromise;
   });
 });

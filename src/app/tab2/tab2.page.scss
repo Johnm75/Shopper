@@ -1,140 +1,134 @@
 /**
- * Estilos de la cuadrícula de fotografías y estados de `Tab2Page`.
- *
- * @author John Fredy Marciales Morales
- * @date 2026-11-06
+ * ===========================================================================
+ * APP SHOPER — Estilos del Carrito de compras (`Tab2Page`)
+ * ===========================================================================
+ * Propósito : Ajustes locales del listado de líneas, el stepper de cantidad,
+ *             el aviso de seguridad y el resumen del pie adhesivo. Las clases
+ *             estructurales (`.shoper-sticky-footer`, `.shoper-price`,
+ *             `.shoper-muted-text`, `.app-surface-card`) viven en
+ *             `global.scss` para respetar `anyComponentStyle <= 2.00 kB`.
+ * Fase SDD  : Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-019).
+ * Autor     : John Fredy Marciales Morales
+ * Fecha     : 2026-11-12
+ * ===========================================================================
  */
 
-// Tiempos de aparición escalonada de miniaturas y retroalimentación al toque.
-$ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
-$photo-enter-duration: 260ms;
-$press-duration: 140ms;
-
-.counter-chip {
-  margin-inline-end: 10px;
-  font-weight: 700;
-}
-
-// Reserva espacio inferior suficiente para que el FAB no cubra la última fila de fotos.
-.photo-grid {
-  padding: 10px 8px calc(96px + env(safe-area-inset-bottom, 0px));
-}
-
-// Celda interactiva cuadrada (`1:1`) optimizada como botón accesible.
-.photo-cell {
-  width: 100%;
-  padding: 0;
-  margin: 0;
-  display: block;
-  cursor: pointer;
-  aspect-ratio: 1 / 1;
-  overflow: hidden;
-  border-radius: 14px;
-  background: var(--app-surface-bg);
-  border: 2px solid var(--app-surface-bg);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
-  animation: photo-enter $photo-enter-duration $ease-out-strong both;
-  transition: transform $press-duration $ease-out-strong;
-}
-
-.photo-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-// Entrada sutil con opacidad y escala usando solo propiedades aceleradas por GPU.
-@keyframes photo-enter {
-  from {
-    opacity: 0;
-    transform: scale(0.94) translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-// Posicionamiento del botón flotante de cámara sobre la barra inferior y safe-area.
-.camera-fab {
-  margin-inline-end: 16px;
-  margin-bottom: calc(16px + var(--ion-safe-area-bottom, 0px));
-
-  ion-fab-button {
-    --box-shadow: 0 10px 24px rgba(79, 70, 229, 0.42);
-    transition: transform $press-duration $ease-out-strong;
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .camera-fab ion-fab-button:active,
-  .photo-cell:active {
-    transform: scale(0.94);
-  }
-}
-
-// Contenedor centrado para los estados de carga, error de lectura y galería vacía.
-.state-wrapper {
-  min-height: 72dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 18px calc(80px + env(safe-area-inset-bottom, 0px));
-}
-
-.state-card {
-  width: 100%;
-  max-width: 380px;
-  padding: 28px 22px;
+// Página: pila vertical con separación rítmica y aire para el pie adhesivo.
+.cart-page {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  text-align: center;
+  gap: var(--shoper-space-md);
+  padding-bottom: var(--shoper-space-lg);
 }
 
-.error-card {
-  border-color: rgba(var(--ion-color-danger-rgb), 0.4);
+// Título de sección: sin anillo de foco (lo recibe de forma programática).
+.cart-title {
+  outline: none;
 }
 
-.empty-badge {
-  width: 72px;
-  height: 72px;
-  border-radius: 22px;
-  background: var(--app-hero-gradient);
+// Región de estado visible (aria-live): mismo patrón que el catálogo.
+.cart-live-region {
   display: flex;
   align-items: center;
+  gap: var(--shoper-space-sm);
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: var(--shoper-status-paid-fg);
+
+  ion-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  &--error {
+    color: var(--ion-color-danger);
+  }
+}
+
+.cart-loading {
+  display: flex;
   justify-content: center;
-  box-shadow: 0 10px 22px rgba(79, 70, 229, 0.28);
+  padding: var(--shoper-space-lg) 0;
 }
 
-.empty-icon {
-  font-size: 36px;
-  color: #fff;
+.cart-list {
+  border-radius: var(--shoper-radius-card);
+  overflow: hidden;
+  border: 1px solid var(--app-surface-border);
+  background: var(--app-surface-bg);
 }
 
-.state-badge-icon {
-  font-size: 48px;
+.cart-item ion-thumbnail {
+  --size: 68px;
+  --border-radius: 12px;
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
-.empty-title {
-  margin: 0;
-  font-size: 1.3rem;
-  font-weight: 800;
+.cart-item__label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-block: 10px;
+}
+
+.cart-item__title {
+  font-weight: 700;
+  font-size: 1.02rem;
+  line-height: 1.3;
   color: var(--ion-text-color);
 }
 
-.state-text {
-  margin: 0;
-  color: var(--ion-color-medium);
-  font-size: 0.95rem;
-  line-height: 1.5;
+.cart-item__price {
+  font-size: 0.9rem;
 }
 
-// Desactiva la animación de entrada cuando el sistema solicita movimiento reducido.
-@media (prefers-reduced-motion: reduce) {
-  .photo-cell {
-    animation: none;
+.cart-item__stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--shoper-space-sm);
+  margin-top: var(--shoper-space-xs);
+}
+
+.cart-item__quantity {
+  min-width: 34px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--ion-text-color);
+}
+
+.cart-empty {
+  padding: var(--shoper-space-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--shoper-space-sm);
+  text-align: center;
+
+  &__icon {
+    font-size: 52px;
+    color: var(--ion-color-medium);
   }
+}
+
+.cart-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cart-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.cart-summary__units {
+  font-size: 0.96rem;
+  font-weight: 600;
+}
+
+.cart-summary__total {
+  font-size: 1.35rem;
 }

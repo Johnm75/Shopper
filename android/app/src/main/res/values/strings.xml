@@ -1,7 +1,21 @@
 <?xml version='1.0' encoding='utf-8'?>
+<!--
+  Recursos de cadenas de la aplicación App Shoper.
+  Define el nombre visible de la app, el título de la actividad principal
+  y el identificador de paquete/URL scheme que deben coincidir con
+  capacitor.config.ts (appId: 'com.abp.appshoper').
+
+  @author John Fredy Marciales Morales
+  @date 2026-11-13
+  @phase Fase 8 SDD — Release Nativo Android
+-->
 <resources>
-    <string name="app_name">Galería de Fotos</string>
-    <string name="title_activity_main">Galería de Fotos</string>
-    <string name="package_name">com.example.photo.gallery</string>
-    <string name="custom_url_scheme">com.example.photo.gallery</string>
+    <!-- Nombre de la aplicación que se muestra en el lanzador del dispositivo. -->
+    <string name="app_name">App Shoper</string>
+    <!-- Título de la actividad principal (MainActivity). -->
+    <string name="title_activity_main">App Shoper</string>
+    <!-- Identificador de paquete de Android; debe ser igual al appId de Capacitor. -->
+    <string name="package_name">com.abp.appshoper</string>
+    <!-- Esquema URL personalizado para deep links; coincide con el package name. -->
+    <string name="custom_url_scheme">com.abp.appshoper</string>
 </resources>

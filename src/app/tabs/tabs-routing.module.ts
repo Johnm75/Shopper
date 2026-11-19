@@ -1,45 +1,25 @@
 /**
- * Árbol de rutas internas para las tres pestañas principales (`/tabs/tab1`, `/tabs/tab2`, `/tabs/tab3`).
+ * Módulo de enrutamiento del contenedor de pestañas `/tabs`.
+ *
+ * Registra el árbol de rutas hijo declarado de forma centralizada en
+ * `tabs.routes.ts` (FILE-014 de PLAN.md) para que `TabsPage` aloje las tres
+ * pestañas del dominio comercial con carga perezosa.
  *
  * @author John Fredy Marciales Morales
- * @date 2026-11-06
+ * @date 2026-11-12
+ * @phase SDD Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-017)
  */
 
 import { NgModule } from '@angular/core';
-import { RouterModule, Routes } from '@angular/router';
+import { RouterModule } from '@angular/router';
 
-import { TabsPage } from './tabs.page';
+// Árbol de rutas canónico de las pestañas (tab1, tab2, tab3 + redirección base).
+import { tabsRoutes } from './tabs.routes';
 
-// Carga cada pestaña bajo demanda y establece `tab2` (Galería) como vista inicial dentro de `/tabs`.
-const tabRoutes: Routes = [
-  {
-    path: '',
-    component: TabsPage,
-    children: [
-      {
-        path: 'tab1',
-        loadChildren: () => import('../tab1/tab1.module').then(m => m.Tab1PageModule),
-      },
-      {
-        path: 'tab2',
-        loadChildren: () => import('../tab2/tab2.module').then(m => m.Tab2PageModule),
-      },
-      {
-        path: 'tab3',
-        loadChildren: () => import('../tab3/tab3.module').then(m => m.Tab3PageModule),
-      },
-      {
-        path: '',
-        redirectTo: 'tab2',
-        pathMatch: 'full',
-      },
-    ],
-  },
-];
-
-// Registra el árbol hijo del contenedor de pestañas en el enrutador de Angular.
+// Registra las rutas hijas del contenedor y reexporta `RouterModule` para que
+// las directivas `routerLink`/`routerLinkActive` estén disponibles en la vista.
 @NgModule({
-  imports: [RouterModule.forChild(tabRoutes)],
+  imports: [RouterModule.forChild(tabsRoutes)],
   exports: [RouterModule],
 })
 export class TabsPageRoutingModule {}

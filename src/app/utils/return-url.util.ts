@@ -2,10 +2,18 @@
  * Sanitización de rutas de retorno post-autenticación para prevenir redirecciones abiertas (*open redirect*).
  *
  * @author John Fredy Marciales Morales
- * @date 2026-11-06
+ * @date 2026-11-12
+ * @phase SDD Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-016)
  */
 
-export const DEFAULT_AUTHENTICATED_REDIRECT_URL = '/tabs/tab2';
+/**
+ * Destino por defecto tras un inicio de sesión exitoso.
+ *
+ * En "App Shoper" la pestaña principal es `tab1` (Catálogo para el Cliente /
+ * Inventario para el Vendedor); el valor anterior `tab2` correspondía a la
+ * galería de fotos heredada y hoy aloja el carrito de compras.
+ */
+export const DEFAULT_AUTHENTICATED_REDIRECT_URL = '/tabs/tab1';
 
 const SAFE_ROUTE_SEGMENT_PATTERN = /^[A-Za-z0-9_-]+$/;
 const MAX_REDIRECT_URL_LENGTH = 200;

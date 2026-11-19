@@ -1,23 +1,63 @@
 /**
  * Pruebas unitarias de `TabsPage`.
  *
+ * Valida que el contenedor muestre únicamente las pestañas e indicadores
+ * correspondientes al rol con el que se inició sesión (Cliente vs. Tienda),
+ * sin exponer ambas vistas ni permitir cambio simultáneo dentro de `/tabs`.
+ *
  * @author John Fredy Marciales Morales
- * @date 2026-11-06
+ * @date 2026-11-18
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { RouterModule } from '@angular/router';
+import { CUSTOM_ELEMENTS_SCHEMA, signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 
 import { TabsPageModule } from './tabs.module';
 import { TabsPage } from './tabs.page';
+import { JwtAuthenticationService } from '../services/auth-jwt.service';
+import { CartService } from '../services/cart.service';
+import { OrderService } from '../services/order.service';
+import { CatalogService } from '../services/catalog.service';
+import type { UserRole } from '../models/shoper.model';
 
 describe('TabsPage', () => {
   let component: TabsPage;
   let fixture: ComponentFixture<TabsPage>;
+  let activeRoleSignal: ReturnType<typeof signal<UserRole>>;
 
   beforeEach(async () => {
+    TestBed.resetTestingModule();
+    activeRoleSignal = signal<UserRole>('customer');
+
     await TestBed.configureTestingModule({
-      imports: [TabsPageModule, RouterModule.forRoot([])],
+      imports: [TabsPageModule],
+      providers: [
+        provideRouter([]),
+        {
+          provide: JwtAuthenticationService,
+          useValue: {
+            activeRole: activeRoleSignal,
+            sessionSignal: signal({ firstName: 'Demo', username: 'demo' }),
+          },
+        },
+        {
+          provide: CartService,
+          useValue: { totalUnits: signal(2), loadCart: vi.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: OrderService,
+          useValue: {
+            ordersSignal: signal([{ currentStatus: 'Pagado' }, { currentStatus: 'Entregado' }]),
+            loadOrders: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: CatalogService,
+          useValue: { loadCatalog: vi.fn().mockResolvedValue(undefined) },
+        },
+      ],
+      schemas: [CUSTOM_ELEMENTS_SCHEMA],
     }).compileComponents();
 
     fixture = TestBed.createComponent(TabsPage);
@@ -25,13 +65,37 @@ describe('TabsPage', () => {
     fixture.detectChanges();
   });
 
-  it('debe crear el contenedor y renderizar las tres pestañas principales', () => {
-    expect(component).toBeTruthy();
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    vi.restoreAllMocks();
+  });
 
-    const tabButtons = (fixture.nativeElement as HTMLElement).querySelectorAll('ion-tab-button');
+  it('debe mostrar 3 pestañas (Catálogo, Carrito, Mis compras) cuando ingresa como Cliente', () => {
+    expect(component).toBeTruthy();
+    const host = fixture.nativeElement as HTMLElement;
+    const tabButtons = host.querySelectorAll('ion-tab-button');
     expect(tabButtons.length).toBe(3);
-    expect(tabButtons[0]?.getAttribute('tab')).toBe('tab1');
-    expect(tabButtons[1]?.getAttribute('tab')).toBe('tab2');
-    expect(tabButtons[2]?.getAttribute('tab')).toBe('tab3');
+    expect(host.textContent).toContain('Catálogo');
+    expect(host.textContent).toContain('Carrito');
+    expect(host.textContent).toContain('Mis compras');
+    expect(host.querySelector('ion-segment')).toBeNull();
+  });
+
+  it('debe ocultar Carrito y mostrar solo Inventario y Pedidos cuando ingresa como Tienda', () => {
+    activeRoleSignal.set('seller');
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const tabButtons = host.querySelectorAll('ion-tab-button');
+    expect(tabButtons.length).toBe(2);
+    expect(host.textContent).toContain('Inventario');
+    expect(host.textContent).toContain('Pedidos');
+    expect(host.textContent).not.toContain('Carrito');
+    expect(host.textContent).toContain('Tienda');
+  });
+
+  it('debe exponer aria-label en la barra de pestañas', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('ion-tab-bar[aria-label]')).toBeTruthy();
   });
 });

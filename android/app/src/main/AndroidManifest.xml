@@ -1,16 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Manifiesto nativo Android de Galería de Fotos (com.example.photo.gallery).
-  Autor: John Fredy Marciales Morales | Fecha: 2026-11-06
+  Manifiesto nativo de Android para la aplicación "App Shoper".
+  Define los componentes principales, políticas de respaldo y permisos de red
+  requeridos por el contenedor WebView de Capacitor para la plataforma Android.
+
+  Identidad de aplicación objetivo: com.abp.appshoper (alineada con capacitor.config.ts).
+  Autor: John Fredy Marciales Morales
+  Fecha: 2026-11-12
+  Fase SDD: Fase 8 — Release, Sincronización Nativa y Empaquetado
+-->
+<!--
+  Elemento raíz del manifiesto: declara el espacio de nombres estándar de Android
+  utilizado por los atributos del sistema en este archivo XML.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Cámara declarada como opcional para permitir instalación en emuladores o tablets sin sensor trasero. -->
-    <uses-feature
-        android:name="android.hardware.camera"
-        android:required="false" />
-
-    <!-- allowBackup="false" evita respaldos no cifrados de tokens JWT y fotografías privadas del sandbox. -->
+    <!--
+      Bloque de aplicación: agrupa la configuración global del proceso Android.
+      - android:allowBackup="false": deshabilita respaldos automáticos para evitar
+        la extracción no controlada de datos locales sensibles (p. ej., sesión JWT
+        demostrativa y estados persistidos en almacenamiento del WebView).
+      - android:icon / android:roundIcon: referencian los íconos adaptativos de la app.
+      - android:label: nombre visible de la aplicación, resuelto desde recursos.
+      - android:supportsRtl="true": habilita soporte para diseños de derecha a izquierda.
+      - android:theme: aplica el tema visual base de la aplicación.
+    -->
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
@@ -19,7 +33,17 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <!-- Actividad contenedora del WebView Capacitor como punto de entrada del lanzador. -->
+        <!--
+          Actividad principal (MainActivity): contenedor del WebView de Capacitor
+          que carga la interfaz web compilada de App Shoper y actúa como punto de entrada.
+          - android:configChanges: delega en la actividad los cambios de configuración
+            para evitar reinicios del WebView ante rotaciones o cambios de idioma/teclado.
+          - android:name: clase de actividad que extiende BridgeActivity de Capacitor.
+          - android:label: título asociado a la actividad principal.
+          - android:theme: tema sin barra de acción para mostrar el splash/lanzamiento.
+          - android:launchMode="singleTask": garantiza una única instancia en la pila.
+          - android:exported="true": permite que el lanzador del sistema inicie la actividad.
+        -->
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation"
             android:name=".MainActivity"
@@ -27,33 +51,27 @@
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:exported="true">
+
+            <!--
+              Filtro de intención principal: registra la actividad como pantalla inicial
+              en el lanzador de Android para que el usuario pueda abrir App Shoper.
+            -->
             <intent-filter>
+                <!-- Acción estándar que identifica la actividad principal ejecutable. -->
                 <action android:name="android.intent.action.MAIN" />
+                <!-- Categoría que publica la actividad en el lanzador de aplicaciones. -->
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- Proveedor privado para compartir URIs temporales de captura con el plugin nativo de cámara. -->
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
     </application>
 
-    <!-- Permisos de red, cámara y lectura acotados según versión de Android (API 33+ vs API <= 32). -->
+    <!--
+      Permiso de acceso a Internet: indispensable para que el WebView y la capa HTTP
+      de la aplicación consuman las APIs remotas de autenticación y catálogo definidas
+      en la configuración de entorno. No se declaran permisos adicionales (cámara,
+      almacenamiento externo o medios) porque App Shoper no requiere dichas capacidades.
+    -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
 
 </manifest>
+

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Archivo de información de la aplicación iOS (Info.plist) para "App Shoper".
+  Define metadatos del bundle, capacidades requeridas y comportamiento de interfaz
+  que utiliza el proyecto nativo generado por Capacitor en la plataforma iOS.
+
+  Autor: John Fredy Marciales Morales
+  Fecha: 2026-11-12
+  Fase SDD: Fase 8 — Release, Sincronización Nativa y Empaquetado
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Región/idioma de desarrollo por defecto usado para recursos localizables. -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<!-- Nombre visible de la aplicación en la pantalla de inicio y en el sistema iOS. -->
+	<key>CFBundleDisplayName</key>
+        <string>App Shoper</string>
+	<!-- Nombre del ejecutable principal del bundle, resuelto por la configuración de Xcode. -->
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<!-- Identificador único del bundle de la aplicación (Bundle ID), definido en el proyecto Xcode. -->
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<!-- Versión del formato del diccionario de información del bundle (valor estándar de Apple). -->
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<!-- Nombre corto del bundle/producto usado internamente por el sistema y por Xcode. -->
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<!-- Tipo de paquete: APPL indica que el bundle corresponde a una aplicación iOS. -->
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<!-- Versión comercial visible para el usuario (Marketing Version) gestionada por el proyecto. -->
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<!-- Número de compilación interno (Build Number) usado para diferenciar entregas. -->
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- Indica que la aplicación requiere ejecutarse en dispositivos iOS (no en macOS clásico). -->
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<!-- Nombre del storyboard utilizado como pantalla de lanzamiento (Launch Screen). -->
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<!-- Storyboard principal que inicializa la interfaz de la aplicación al arrancar. -->
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<!-- Capacidades de hardware requeridas; armv7 mantiene compatibilidad con arquitecturas esperadas. -->
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>armv7</string>
+	</array>
+	<!-- Orientaciones de interfaz permitidas en iPhone. -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<!-- Orientaciones de interfaz permitidas en iPad. -->
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<!-- Permite que cada controlador de vista determine la apariencia de la barra de estado. -->
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+</dict>
+</plist>
+

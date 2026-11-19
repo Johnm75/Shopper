@@ -1,100 +1,122 @@
 /**
- * Fachada de almacenamiento local sobre `@capacitor/preferences` exclusiva para la sesión JWT.
- * Separa las claves de autenticación del índice de fotografías para preservar la galería al cerrar sesión.
+ * Fachada de almacenamiento local sobre `ShopperDatabaseService` (IndexedDB +
+ * respaldo `@capacitor/preferences`) para la sesión de "App Shoper".
+ *
+ * Expone una API canónica (`getSession`, `setSession`, `clearSession`) y
+ * mantiene métodos heredados para compatibilidad con componentes y specs de la
+ * galería de fotos.
  *
  * @author John Fredy Marciales Morales
- * @date 2026-11-06
+ * @date 2026-11-18
+ * @phase SDD Fase 3 — Arquitectura Capacitor
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
 
+import type { PersistedSessionRecord } from '../models/shoper.model';
 import type { AuthenticatedUserProfile } from '../models/auth.model';
 import { environment } from '../../environments/environment';
+import { ShopperDatabaseService } from './database.service';
 
 @Injectable({
   providedIn: 'root',
 })
-export class JwtSessionStorageService {
-  // Claves dedicadas a la sesión para no interferir con otros datos locales de la app.
-  private readonly accessTokenKey = environment.jwtSession.accessTokenKey;
-  private readonly expirationKey = environment.jwtSession.expirationKey;
-  private readonly userProfileKey = environment.jwtSession.userProfileKey;
+export class TokenStorageService {
+  private readonly database = inject(ShopperDatabaseService);
 
   /**
-   * Lee el token JWT almacenado en preferencias del dispositivo, o `null` si no existe.
+   * Recupera la sesión persistida o `null` si no existe o está corrupta.
    */
+  async getSession(): Promise<PersistedSessionRecord | null> {
+    return this.database.getSession();
+  }
+
+  /**
+   * Serializa y guarda el registro de sesión completo en la base de datos.
+   */
+  async setSession(record: PersistedSessionRecord): Promise<void> {
+    await this.database.saveSession(record);
+  }
+
+  /**
+   * Elimina el registro de sesión de la base de datos local.
+   */
+  async clearSession(): Promise<void> {
+    await this.database.clearSession();
+  }
+
+  // --- Métodos heredados de compatibilidad con la galería de fotos ---
+
   async getAccessToken(): Promise<string | null> {
-    const { value } = await Preferences.get({ key: this.accessTokenKey });
-    return value;
+    const session = await this.getSession();
+    return session?.accessToken ?? null;
   }
 
-  /**
-   * Guarda el token de acceso JWT en el almacenamiento clave-valor nativo.
-   */
   async saveAccessToken(accessToken: string): Promise<void> {
-    await Preferences.set({ key: this.accessTokenKey, value: accessToken });
+    const session = (await this.getSession()) ?? this.createEmptySession(accessToken);
+    session.accessToken = accessToken;
+    await this.setSession(session);
   }
 
-  /**
-   * Obtiene la marca de expiración en milisegundos y descarta valores no numéricos.
-   */
   async getExpirationTimestamp(): Promise<number | null> {
-    const { value } = await Preferences.get({ key: this.expirationKey });
-    if (!value) {
+    const session = await this.getSession();
+    if (!session?.expiresAt) {
       return null;
     }
-
-    const parsedTimestamp = Number.parseInt(value, 10);
-    return Number.isNaN(parsedTimestamp) ? null : parsedTimestamp;
+    const parsed = Date.parse(session.expiresAt);
+    return Number.isNaN(parsed) ? null : parsed;
   }
 
-  /**
-   * Persiste la fecha límite de validez del token serializada como texto.
-   */
   async saveExpirationTimestamp(expirationTimestampMs: number): Promise<void> {
-    await Preferences.set({
-      key: this.expirationKey,
-      value: String(expirationTimestampMs),
-    });
+    const session = (await this.getSession()) ?? this.createEmptySession('legacy-token');
+    session.expiresAt = new Date(expirationTimestampMs).toISOString();
+    await this.setSession(session);
   }
 
-  /**
-   * Recupera y deserializa el perfil del usuario autenticado desde preferencias.
-   */
   async getAuthenticatedUserProfile(): Promise<AuthenticatedUserProfile | null> {
-    const { value } = await Preferences.get({ key: this.userProfileKey });
-    if (!value) {
+    const session = await this.getSession();
+    if (!session) {
       return null;
     }
-
-    try {
-      return JSON.parse(value) as AuthenticatedUserProfile;
-    } catch {
-      // Si el JSON almacenado se corrompe, se limpia la clave para forzar una sesión limpia.
-      await Preferences.remove({ key: this.userProfileKey });
-      return null;
-    }
+    return {
+      id: session.username,
+      fullName: `${session.firstName} ${session.lastName}`.trim(),
+      email: `${session.username}@example.com`,
+      role: 'student',
+    };
   }
 
-  /**
-   * Guarda los datos básicos del usuario autenticado en formato JSON.
-   */
   async saveAuthenticatedUserProfile(userProfile: AuthenticatedUserProfile): Promise<void> {
-    await Preferences.set({
-      key: this.userProfileKey,
-      value: JSON.stringify(userProfile),
-    });
+    const session = (await this.getSession()) ?? this.createEmptySession('legacy-token');
+    const nameParts = userProfile.fullName.split(' ');
+    session.firstName = nameParts[0] ?? 'Usuario';
+    session.lastName = nameParts.slice(1).join(' ').trim() || 'Demo';
+    session.username = userProfile.id;
+    await this.setSession(session);
   }
 
-  /**
-   * Elimina únicamente las claves de sesión JWT sin tocar el índice local de fotos.
-   */
   async clearStoredSession(): Promise<void> {
     await Promise.all([
-      Preferences.remove({ key: this.accessTokenKey }),
-      Preferences.remove({ key: this.expirationKey }),
-      Preferences.remove({ key: this.userProfileKey }),
+      this.clearSession(),
+      Preferences.remove({ key: environment.jwtSession.accessTokenKey }),
+      Preferences.remove({ key: environment.jwtSession.expirationKey }),
+      Preferences.remove({ key: environment.jwtSession.userProfileKey }),
     ]);
   }
+
+  private createEmptySession(accessToken: string): PersistedSessionRecord {
+    return {
+      accessToken,
+      refreshToken: '',
+      username: 'legacy',
+      firstName: 'Legacy',
+      lastName: 'User',
+      role: 'customer',
+      source: 'offline-fallback',
+      schemaVersion: 1,
+    };
+  }
 }
+
+export { TokenStorageService as JwtSessionStorageService };

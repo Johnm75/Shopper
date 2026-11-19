@@ -1,40 +1,110 @@
 /**
- * Servicio central de autenticación JWT: gestiona login contra la API REST,
- * hidratación temprana desde almacenamiento nativo, control de vigencia y cierre de sesión.
+ * Servicio central de autenticación JWT para "App Shoper".
+ *
+ * Gestiona login remoto contra DummyJSON, fallback offline determinista,
+ * cambio de rol activo, cierre de sesión y señales reactivas para la UI.
+ *
+ * ⚠️ ADVERTENCIAS DE SEGURIDAD:
+ * - Los tokens de DummyJSON son de demostración; no verificamos su firma.
+ * - `@capacitor/preferences` almacena en texto plano; no contiene PII real.
+ * - El checkout es simulado; no se procesan pagos ni datos bancarios reales.
  *
  * @author John Fredy Marciales Morales
- * @date 2026-11-06
+ * @date 2026-11-12
+ * @phase SDD Fase 3 — Arquitectura Capacitor
  */
 
 import { Injectable, computed, inject, signal } from '@angular/core';
+// Cliente HTTP y modelo de error para detectar fallas de red.
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+// Router para redirecciones opcionales al cerrar sesión.
 import { Router } from '@angular/router';
+// Utilidad para convertir observables en promesas.
 import { firstValueFrom } from 'rxjs';
 
-import { JwtSessionStorageService } from './token-storage.service';
+// Servicio de almacenamiento persistente de la sesión.
+import { TokenStorageService } from './token-storage.service';
+// Base de datos local centralizada (`shopper_db`).
+import { ShopperDatabaseService } from './database.service';
+// Modelos canónicos del dominio Shoper.
+import type {
+  DummyJsonLoginResponse,
+  PersistedSessionRecord,
+  ShoperLoginCredentials,
+  UserRole,
+} from '../models/shoper.model';
+// Modelos heredados de la galería de fotos (compatibilidad transitoria).
 import type {
   AuthenticatedSession,
   AuthenticationErrorCode,
-  LoginApiResponse,
   LoginCredentials,
 } from '../models/auth.model';
+// Variables de entorno: origen API y claves de almacenamiento.
 import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root',
 })
 export class JwtAuthenticationService {
+  // Cliente HTTP para llamar a DummyJSON.
   private readonly httpClient = inject(HttpClient);
+  // Router para redirecciones opcionales al cerrar sesión.
   private readonly router = inject(Router);
-  private readonly sessionStorage = inject(JwtSessionStorageService);
+  // Almacenamiento persistente de la sesión.
+  private readonly tokenStorage = inject(TokenStorageService);
+  // Base de datos centralizada para registrar usuarios autenticados.
+  private readonly database = inject(ShopperDatabaseService);
 
-  readonly activeSession = signal<AuthenticatedSession | null>(null);
+  // Promesa de hidratación para evitar ejecuciones concurrentes.
+  private hydrationPromise: Promise<void> | null = null;
 
   /**
-   * Expone únicamente los extremos del JWT para diagnóstico visual sin revelar el payload ni la firma completa.
+   * Señal reactiva canónica con el registro de sesión actual.
+   */
+  readonly sessionSignal = signal<PersistedSessionRecord | null>(null);
+
+  /**
+   * Indica si existe una sesión activa.
+   */
+  readonly isAuthenticated = computed(() => this.sessionSignal() !== null);
+
+  /**
+   * Rol activo de la sesión; devuelve `customer` cuando no hay sesión.
+   */
+  readonly activeRole = computed<UserRole>(() => this.sessionSignal()?.role ?? 'customer');
+
+  /**
+   * Origen del token actual (`remote-api` u `offline-fallback`).
+   */
+  readonly tokenSource = computed(() => this.sessionSignal()?.source ?? null);
+
+  // --- Señales heredadas de compatibilidad con la galería de fotos ---
+
+  /**
+   * Vista heredada de la sesión en formato `AuthenticatedSession`.
+   */
+  readonly activeSession = computed<AuthenticatedSession | null>(() => {
+    const session = this.sessionSignal();
+    if (!session) {
+      return null;
+    }
+    return {
+      accessToken: session.accessToken,
+      expiresAtTimestampMs: session.expiresAt ? Date.parse(session.expiresAt) : Date.now() + 3_600_000,
+      userProfile: {
+        id: session.username,
+        fullName: `${session.firstName} ${session.lastName}`.trim(),
+        email: `${session.username}@example.com`,
+        role: 'student',
+      },
+    };
+  });
+
+  /**
+   * Muestra los primeros y últimos caracteres del token para diagnóstico visual.
    */
   readonly maskedTokenPreview = computed(() => {
-    const rawToken = this.activeSession()?.accessToken;
+    const rawToken = this.sessionSignal()?.accessToken;
     if (!rawToken) {
       return '';
     }
@@ -42,83 +112,130 @@ export class JwtAuthenticationService {
   });
 
   /**
-   * Calcula los minutos restantes de vigencia del token activo para consulta en la vista.
+   * Calcula los minutos restantes de vigencia del token activo.
    */
   readonly remainingSessionMinutes = computed(() => {
-    const expiresAtMs = this.activeSession()?.expiresAtTimestampMs;
-    if (!expiresAtMs) {
+    const expiresAtIso = this.sessionSignal()?.expiresAt;
+    if (!expiresAtIso) {
       return null;
     }
-    const remainingMs = expiresAtMs - Date.now();
+    const remainingMs = Date.parse(expiresAtIso) - Date.now();
     return remainingMs > 0 ? Math.floor(remainingMs / 60_000) : 0;
   });
 
-  private restorationPromise: Promise<void> | null = null;
-
   /**
-   * Restaura la sesión persistida una única vez antes de que Angular evalúe las guardas de ruta.
+   * Inicia el servicio hidratando la sesión persistida.
    */
-  async restorePersistedSession(): Promise<void> {
-    if (!this.restorationPromise) {
-      this.restorationPromise = this.hydrateSessionFromStorage();
-    }
-    return this.restorationPromise;
+  constructor() {
+    // Arranca la hidratación inmediatamente; `restorePersistedSession` puede esperarla.
+    this.hydrationPromise = this.hydrateSessionFromStorage();
   }
 
   /**
-   * Envía las credenciales a `POST /auth/login` y persiste en paralelo el JWT, su vigencia y el perfil.
+   * Hidrata la sesión desde Preferences de forma idempotente.
    */
-  async authenticateWithCredentials(credentials: LoginCredentials): Promise<AuthenticatedSession> {
+  async restorePersistedSession(): Promise<void> {
+    if (!this.hydrationPromise) {
+      this.hydrationPromise = this.hydrateSessionFromStorage();
+    }
+    await this.hydrationPromise;
+  }
+
+  /**
+   * Autentica contra DummyJSON con JWT; si falla la red, genera un token
+   * offline y persiste sesión + usuario en `shopper_db`.
+   */
+  async login(credentials: ShoperLoginCredentials): Promise<PersistedSessionRecord> {
     const loginEndpointUrl = `${environment.apiBaseUrl}/auth/login`;
 
     try {
+      // Envía solo username/password porque DummyJSON no espera role.
       const apiResponse = await firstValueFrom(
-        this.httpClient.post<LoginApiResponse>(loginEndpointUrl, credentials)
+        this.httpClient.post<DummyJsonLoginResponse>(loginEndpointUrl, {
+          username: credentials.username,
+          password: credentials.password,
+        })
       );
 
-      const expiresAtTimestampMs = this.calculateExpirationTimestamp(apiResponse);
-      const authenticatedSession: AuthenticatedSession = {
-        accessToken: apiResponse.token,
-        expiresAtTimestampMs,
-        userProfile: apiResponse.user,
-      };
-
-      await Promise.all([
-        this.sessionStorage.saveAccessToken(authenticatedSession.accessToken),
-        this.sessionStorage.saveExpirationTimestamp(authenticatedSession.expiresAtTimestampMs),
-        this.sessionStorage.saveAuthenticatedUserProfile(authenticatedSession.userProfile),
-      ]);
-
-      this.activeSession.set(authenticatedSession);
-      return authenticatedSession;
+      const sessionRecord = this.mapDummyJsonResponseToSessionRecord(apiResponse, credentials.role);
+      await this.tokenStorage.setSession(sessionRecord);
+      await this.database.upsertUser({
+        username: sessionRecord.username,
+        firstName: sessionRecord.firstName,
+        lastName: sessionRecord.lastName,
+        role: sessionRecord.role,
+        source: sessionRecord.source,
+        lastLoginAt: new Date().toISOString(),
+      });
+      this.sessionSignal.set(sessionRecord);
+      return sessionRecord;
     } catch (httpError) {
+      // Cuando no hay conectividad, activa el fallback offline determinista.
+      if (this.isNetworkError(httpError)) {
+        return this.performOfflineFallbackLogin(credentials);
+      }
       throw this.translateHttpAuthError(httpError);
     }
   }
 
   /**
-   * Devuelve el token activo solo si supera la ventana preventiva `clockSkewSeconds`;
-   * de lo contrario limpia la sesión vencida para evitar peticiones rechazadas en vuelo.
+   * Cambia el rol activo de la sesión y persiste el cambio.
    */
-  async getValidAccessToken(): Promise<string | null> {
-    const currentSession = this.activeSession();
+  async switchActiveRole(role: UserRole): Promise<void> {
+    const currentSession = this.sessionSignal();
     if (!currentSession) {
-      return null;
+      return;
     }
 
-    const effectiveExpirationMs =
-      currentSession.expiresAtTimestampMs - environment.jwtSession.clockSkewSeconds * 1000;
-
-    if (effectiveExpirationMs <= Date.now()) {
-      await this.signOutSession({ navigateToLogin: false });
-      return null;
-    }
-
-    return currentSession.accessToken;
+    const updatedSession: PersistedSessionRecord = { ...currentSession, role };
+    await this.tokenStorage.setSession(updatedSession);
+    this.sessionSignal.set(updatedSession);
   }
 
   /**
-   * Indica si existe una sesión autenticada cuyo JWT continúe dentro de su ventana válida.
+   * Cierra la sesión limpiando la señal y el almacenamiento.
+   */
+  async logout(): Promise<void> {
+    await this.tokenStorage.clearSession();
+    this.sessionSignal.set(null);
+  }
+
+  // --- Métodos heredados de compatibilidad con la galería de fotos ---
+
+  /**
+   * Envía credenciales heredadas (email/password) mapeándolas a username.
+   */
+  async authenticateWithCredentials(credentials: LoginCredentials): Promise<AuthenticatedSession> {
+    const username = credentials.email.split('@')[0] ?? credentials.email;
+    await this.login({
+      username,
+      password: credentials.password,
+      role: 'customer',
+    });
+
+    const legacySession = this.activeSession();
+    if (!legacySession) {
+      throw 'unexpected_error';
+    }
+    return legacySession;
+  }
+
+  /**
+   * Devuelve el token activo si existe y no ha expirado; de lo contrario limpia la sesión.
+   */
+  async getValidAccessToken(): Promise<string | null> {
+    const currentSession = this.sessionSignal();
+    if (!this.isSessionRecordValid(currentSession)) {
+      if (currentSession) {
+        await this.logout();
+      }
+      return null;
+    }
+    return currentSession!.accessToken;
+  }
+
+  /**
+   * Indica si existe una sesión JWT autenticada, con token no vacío y vigente.
    */
   async hasActiveSession(): Promise<boolean> {
     const validToken = await this.getValidAccessToken();
@@ -126,72 +243,119 @@ export class JwtAuthenticationService {
   }
 
   /**
-   * Limpia las credenciales almacenadas en el dispositivo y redirige opcionalmente a `/login`.
+   * Limpia la sesión y redirige opcionalmente a `/login`.
    */
   async signOutSession(options: { navigateToLogin?: boolean } = {}): Promise<void> {
-    const shouldNavigateToLogin = options.navigateToLogin ?? true;
-
-    await this.sessionStorage.clearStoredSession();
-    this.activeSession.set(null);
-
-    if (shouldNavigateToLogin) {
+    await this.logout();
+    if (options.navigateToLogin ?? true) {
       await this.router.navigate(['/login'], { replaceUrl: true });
     }
   }
 
   /**
-   * Reconstruye la sesión en memoria desde `Preferences` descartándola si ya expiró.
+   * Lee la sesión persistida desde `shopper_db` y la valida antes de activarla.
    */
   private async hydrateSessionFromStorage(): Promise<void> {
     try {
-      const [accessToken, expiresAtTimestampMs, userProfile] = await Promise.all([
-        this.sessionStorage.getAccessToken(),
-        this.sessionStorage.getExpirationTimestamp(),
-        this.sessionStorage.getAuthenticatedUserProfile(),
-      ]);
-
-      if (!accessToken || !expiresAtTimestampMs || !userProfile) {
-        this.activeSession.set(null);
+      const session = await this.tokenStorage.getSession();
+      if (!this.isSessionRecordValid(session)) {
+        if (session) {
+          await this.tokenStorage.clearSession();
+        }
+        this.sessionSignal.set(null);
         return;
       }
-
-      const effectiveExpirationMs =
-        expiresAtTimestampMs - environment.jwtSession.clockSkewSeconds * 1000;
-
-      if (effectiveExpirationMs <= Date.now()) {
-        await this.sessionStorage.clearStoredSession();
-        this.activeSession.set(null);
-        return;
-      }
-
-      this.activeSession.set({
-        accessToken,
-        expiresAtTimestampMs,
-        userProfile,
-      });
+      this.sessionSignal.set(session);
     } catch {
-      this.activeSession.set(null);
+      this.sessionSignal.set(null);
     }
   }
 
   /**
-   * Determina la expiración en milisegundos usando `expiresInSeconds`, el claim `exp` o el TTL por defecto.
+   * Convierte la respuesta de DummyJSON al registro canónico de sesión JWT.
+   * Soporta tanto `accessToken` (API actual de DummyJSON) como `token`.
    */
-  private calculateExpirationTimestamp(response: LoginApiResponse): number {
-    if (response.expiresInSeconds && response.expiresInSeconds > 0) {
-      return Date.now() + response.expiresInSeconds * 1000;
+  private mapDummyJsonResponseToSessionRecord(
+    response: DummyJsonLoginResponse,
+    role: UserRole
+  ): PersistedSessionRecord {
+    const accessToken = response.accessToken ?? response.token;
+    if (!accessToken) {
+      throw 'unexpected_error' as AuthenticationErrorCode;
     }
 
-    const jwtExpClaimSeconds = this.extractJwtExpirationClaim(response.token);
-    if (jwtExpClaimSeconds) {
-      return jwtExpClaimSeconds * 1000;
-    }
+    const jwtExpSeconds = this.extractJwtExpirationClaim(accessToken);
+    const expiresAt = jwtExpSeconds
+      ? new Date(jwtExpSeconds * 1000).toISOString()
+      : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    return Date.now() + environment.jwtSession.defaultTimeToLiveSeconds * 1000;
+    return {
+      accessToken,
+      refreshToken: response.refreshToken ?? '',
+      username: response.username,
+      firstName: response.firstName,
+      lastName: response.lastName,
+      role,
+      source: 'remote-api',
+      expiresAt,
+      schemaVersion: 1,
+    };
   }
 
   /**
-   * Decodifica el segmento Base64URL del payload JWT para leer el claim estándar `exp`.
+   * Genera un token local determinista cuando la API remota no está disponible,
+   * tomando el perfil almacenado en `shopper_db.users` si existe.
+   */
+  private async performOfflineFallbackLogin(
+    credentials: ShoperLoginCredentials
+  ): Promise<PersistedSessionRecord> {
+    const dbUser = await this.database.getUserByUsername(credentials.username);
+    const offlineToken = `offline-jwt-${credentials.username}-${Date.now()}`;
+    const sessionRecord: PersistedSessionRecord = {
+      accessToken: offlineToken,
+      refreshToken: offlineToken,
+      username: credentials.username,
+      firstName: dbUser?.firstName ?? credentials.username,
+      lastName: dbUser?.lastName ?? 'Offline',
+      role: credentials.role,
+      source: 'offline-fallback',
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      schemaVersion: 1,
+    };
+
+    await this.tokenStorage.setSession(sessionRecord);
+    await this.database.upsertUser({
+      username: sessionRecord.username,
+      firstName: sessionRecord.firstName,
+      lastName: sessionRecord.lastName,
+      role: sessionRecord.role,
+      source: 'offline-fallback',
+      lastLoginAt: new Date().toISOString(),
+    });
+    this.sessionSignal.set(sessionRecord);
+    return sessionRecord;
+  }
+
+  /**
+   * Valida que el registro posea un token no vacío y no haya caducado.
+   */
+  private isSessionRecordValid(session: PersistedSessionRecord | null): session is PersistedSessionRecord {
+    if (!session || !session.accessToken) {
+      return false;
+    }
+    if (!session.expiresAt) {
+      return true;
+    }
+    const expiresAtMs = Date.parse(session.expiresAt);
+    if (Number.isNaN(expiresAtMs)) {
+      return false;
+    }
+    const skewMs = environment.jwtSession.clockSkewSeconds * 1000;
+    return expiresAtMs - skewMs > Date.now();
+  }
+
+  /**
+   * Decodifica el segmento Base64URL del payload JWT para leer el claim `exp`.
    */
   private extractJwtExpirationClaim(compactJwt: string): number | null {
     try {
@@ -199,21 +363,27 @@ export class JwtAuthenticationService {
       if (!payloadSegment) {
         return null;
       }
-
       const standardBase64 = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
       const decodedPayload = JSON.parse(atob(standardBase64)) as { exp?: number };
-      return decodedPayload.exp ?? null;
+      return typeof decodedPayload.exp === 'number' ? decodedPayload.exp : null;
     } catch {
       return null;
     }
   }
 
   /**
-   * Traduce fallos HTTP crudos en códigos de dominio predecibles para la capa de vista.
+   * Determina si un error HTTP corresponde a una falla de red.
+   */
+  private isNetworkError(error: unknown): boolean {
+    return error instanceof HttpErrorResponse && error.status === 0;
+  }
+
+  /**
+   * Traduce errores HTTP a códigos de dominio predecibles.
    */
   private translateHttpAuthError(error: unknown): AuthenticationErrorCode {
     if (error instanceof HttpErrorResponse) {
-      if (error.status === 401) {
+      if (error.status === 401 || error.status === 400) {
         return 'invalid_credentials';
       }
       if (error.status === 0) {

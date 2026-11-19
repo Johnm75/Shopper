@@ -1,112 +1,117 @@
 /**
- * Estilos de la pestaña «Inicio» (`Tab1Page`).
- *
- * @author John Fredy Marciales Morales
- * @date 2026-11-06
+ * ===========================================================================
+ * APP SHOPER — Estilos de Catálogo/Inventario (`Tab1Page`)
+ * ===========================================================================
+ * Propósito : Solo ajustes locales de ritmo y layout; las tarjetas
+ *             (`.shoper-product-card`), insignias (`.badge-*`) y utilidades
+ *             de página viven en `global.scss` para respetar el presupuesto
+ *             `anyComponentStyle <= 2.00 kB` (CON-002 / RISK-003).
+ * Fase SDD  : Fase 5B — Desarrollo de Vistas UI y Navegación (TASK-018).
+ * Autor     : John Fredy Marciales Morales
+ * Fecha     : 2026-11-12
+ * ===========================================================================
  */
 
-// Columna central con margen inferior adaptado a la barra de gestos nativa.
-.home-container {
-  max-width: 540px;
-  margin: 0 auto;
-  padding: 20px 16px calc(32px + env(safe-area-inset-bottom, 0px));
+// Página: pila vertical con separación rítmica entre bloques.
+.catalog-page {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--shoper-space-md);
 }
 
-// Tarjeta destacada con gradiente para resumir sesión activa y conteo local.
-.hero-banner {
-  background: var(--app-hero-gradient);
-  color: #fff;
-  border-radius: 22px;
-  padding: 24px 20px;
-  box-shadow: 0 12px 28px rgba(79, 70, 229, 0.25);
+// Título de sección: se anula el outline porque recibe foco programático
+// accesible (el lector de pantalla ya anuncia el encabezado).
+.catalog-title {
+  outline: none;
+}
+
+// Región de estado visible (aria-live): píldora discreta que aparece solo
+// cuando hay mensaje; sin contenido no ocupa espacio.
+.catalog-live-region {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.hero-badge {
-  --background: rgba(255, 255, 255, 0.18);
-  --color: #fff;
-  margin: 0;
-  font-weight: 600;
-}
-
-.hero-heading {
-  margin: 0;
-  font-size: 1.45rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-
-.hero-copy {
-  margin: 0;
+  align-items: center;
+  gap: var(--shoper-space-sm);
+  min-height: 0;
   font-size: 0.94rem;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.94);
+  font-weight: 600;
+  color: var(--shoper-status-paid-fg);
+
+  ion-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  &--error {
+    color: var(--ion-color-danger);
+  }
 }
 
-// Espaciado uniforme entre bloques de atajos rápidos y catálogo REST.
-.actions-card,
-.api-card {
+.catalog-loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--shoper-space-lg) 0;
+}
+
+.seller-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  ion-button {
+    flex: 1 1 180px;
+  }
+}
+
+// Formulario de alta/edición: tarjeta elevada con campos desacoplados y nítidos.
+.product-form {
   padding: 20px 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+
+  &__header {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--app-surface-border);
+  }
+
+  &__title {
+    margin: 0 0 4px;
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    color: var(--ion-text-color);
+  }
+
+  &__subtitle {
+    margin: 0;
+  }
+
+  &__row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+  }
+
+  &__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 4px;
+  }
 }
 
-.section-title {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--ion-text-color);
+// Cuadrícula: aire inferior entre filas de tarjetas (las columnas de Ionic
+// ya aportan 5 px laterales por `--ion-grid-column-padding`).
+.catalog-grid {
+  padding-inline: 0;
+
+  ion-col {
+    margin-bottom: var(--shoper-space-md);
+  }
 }
 
-// Cabecera y estados de sincronización del servicio remoto autenticado.
-.api-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.api-subtitle {
-  margin: 4px 0 0;
-  font-size: 0.8rem;
-  color: var(--ion-color-medium);
-}
-
-.api-state {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 0;
-  font-size: 0.9rem;
-  color: var(--ion-color-medium);
-}
-
-.api-error {
-  margin: 0;
-  color: var(--ion-color-danger);
-  font-size: 0.9rem;
-}
-
-// Filas y miniaturas cuadradas del listado recibido desde `GET /v1/photos`.
-.api-list {
-  padding: 0;
-  background: transparent;
-}
-
-.api-item {
-  --padding-start: 0;
-  --inner-padding-end: 0;
-}
-
-.api-thumb {
-  --border-radius: 12px;
-  width: 48px;
-  height: 48px;
+// Estado vacío: tarjeta centrada con texto de apoyo.
+.catalog-empty {
+  padding: var(--shoper-space-lg);
+  text-align: center;
 }

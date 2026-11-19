@@ -1,5 +1,5 @@
 {
-  "name": "photo-gallery",
+  "name": "shopper",
   "version": "0.0.1",
   "author": "John Fredy Marciales Morales",
   "homepage": "https://ionicframework.com/",
@@ -26,6 +26,7 @@
     "@capacitor/cli": "^7.6.10",
     "@capacitor/core": "^7.6.10",
     "@capacitor/filesystem": "^7.1.9",
+    "@capacitor/ios": "^7.6.10",
     "@capacitor/preferences": "^7.0.4",
     "@ionic/angular": "^9.0.0",
     "@ionic/pwa-elements": "^3.4.0",

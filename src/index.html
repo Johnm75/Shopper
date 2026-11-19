@@ -1,30 +1,91 @@
 <!DOCTYPE html>
 <!--
-  Documento HTML principal de Galería de Fotos.
-  Autor: John Fredy Marciales Morales | Fecha: 2026-11-06
+  ===========================================================================
+  APP SHOPER (com.abp.appshoper) — Documento HTML raíz
+  ===========================================================================
+  Propósito : Punto de entrada del WebView (Android/iOS) y del navegador en
+              desarrollo (`ionic serve`). Monta la aplicación Angular/Ionic y
+              declara los meta-tags que garantizan una experiencia móvil
+              nativa (safe areas, teclado, barra de estado y zoom accesible).
+  Fase SDD  : Fase 4 — Diseño Ionic, Sistema de Temas, Safe Areas y UX Nativa
+              (TASK-010 del PLAN.md).
+  Autor     : John Fredy Marciales Morales
+  Fecha     : 2026-11-12
+  ===========================================================================
 -->
+<!-- `lang="es"` declara el idioma del documento para lectores de pantalla
+     (TalkBack/VoiceOver pronuncian correctamente en español — WCAG 3.1.1). -->
 <html lang="es">
 
 <head>
+  <!-- Codificación de caracteres UTF-8: obligatoria para los acentos y la "ñ"
+       usados en los estados logísticos ("En preparación", "En camino"). -->
   <meta charset="utf-8" />
-  <title>Galería de Fotos</title>
+
+  <!-- Título de la aplicación mostrado en la pestaña del navegador, en el
+       lanzador del dispositivo y en los selectores del sistema. -->
+  <title>App Shoper</title>
+
+  <!-- Base href "/" para que el enrutador de Angular resuelva las rutas
+       absolutas (/login, /tabs/tab1, ...) dentro del WebView de Capacitor. -->
   <base href="/" />
+
+  <!-- Habilita la adaptación automática de colores claros/oscuros del sistema
+       operativo (la paleta oscura de Ionic se activa con prefers-color-scheme). -->
   <meta name="color-scheme" content="light dark" />
-  <!-- Mantiene el zoom accesible (WCAG 1.4.4) y adapta safe-areas e interacción con teclado móvil. -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-  <!-- Barra de estado adaptada al esquema de color del sistema operativo. -->
+
+  <!-- VIEWPORT con `viewport-fit=cover`:
+       1. `width=device-width` + `initial-scale=1.0`: escala correcta en móviles.
+       2. `minimum-scale=1.0` SIN `maximum-scale` ni `user-scalable=no`: el zoom
+          por pellizco permanece habilitado (WCAG 1.4.4 — nunca se desactiva).
+       3. `viewport-fit=cover`: la página se dibuja de borde a borde bajo el
+          notch/Dynamic Island y la barra de gestos; sin este valor todas las
+          funciones `env(safe-area-inset-*)` de global.scss devolverían 0px.
+       4. `interactive-widget=resizes-content`: en Android Chrome el teclado
+          en pantalla reduce el viewport dinámico, de modo que `100dvh` y las
+          barras fijas reaccionan igual que en iOS. -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, minimum-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+
+  <!-- Barra de estado del sistema acorde al esquema activo. El valor coincide
+       con el fondo de la cabecera (`--ion-toolbar-background` de
+       theme/variables.scss) para que la transición sea imperceptible:
+       claro = #ffffff (toolbars blancas) / oscuro = #111827 (toolbars grafito). -->
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111827" />
-  <!-- Evita enlaces telefónicos accidentales y destellos táctiles heredados en WebView. -->
+
+  <!-- Descripción breve de la app: la usan buscadores y previsualizaciones. -->
+  <meta name="description"
+    content="App Shoper: tienda híbrida local-first con roles Cliente y Vendedor, carrito de compras y trazabilidad logística de 4 estados (Pagado, En preparación, En camino, Entregado)." />
+
+  <!-- Evita que el WebView convierta en enlaces telefónicos los números de
+       pedido (p. ej. "#ORD-1001") o los precios mostrados en las tarjetas. -->
   <meta name="format-detection" content="telephone=no" />
+
+  <!-- Desactiva el destello azul heredado de Windows Phone/Edge antiguo al
+       tocar elementos interactivos (complementa -webkit-tap-highlight-color). -->
   <meta name="msapplication-tap-highlight" content="no" />
+
+  <!-- Icono de la aplicación en pestañas del navegador y marcadores. -->
   <link rel="icon" type="image/png" href="assets/icon/favicon.png" />
+
+  <!-- Metadatos para la instalación como PWA en Android (Chrome) —
+       manifiesta que la app es capaz de ejecutarse a pantalla completa. -->
   <meta name="mobile-web-app-capable" content="yes" />
+
+  <!-- Metadatos PWA para iOS (Safari): nombre visible bajo el icono cuando la
+       app se añade a la pantalla de inicio. -->
+  <meta name="apple-mobile-web-app-title" content="App Shoper" />
+
+  <!-- Estilo de la barra de estado en iOS cuando la app se instala en la
+       pantalla de inicio: "black" = barra oscura sólida, aspecto nativo. -->
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
 </head>
 
 <body>
-  <!-- Punto de montaje del componente raíz de Angular. -->
+  <!-- Punto de montaje del componente raíz de Angular (`app.component.ts`).
+       Todo el árbol de Ionic (ion-app > ion-router-outlet > páginas) se
+       renderiza dentro de esta etiqueta. -->
   <app-root></app-root>
 </body>
 

@@ -1,23 +1,79 @@
-<!-- Navegación inferior de pestañas | Autor: John Fredy Marciales Morales | Fecha: 2026-11-06 -->
+<!--
+  ===========================================================================
+  APP SHOPER — Contenedor de pestañas (`TabsPage`)
+  ===========================================================================
+  Propósito : Cabecera con indicador de rol de solo lectura (Cliente | Tienda)
+              y barra inferior filtrada al rol con el que se inició sesión:
+              - Cliente: Catálogo + Carrito + Mis compras.
+              - Tienda (Vendedor): Inventario + Pedidos (sin Carrito ni cambio
+                simultáneo de vistas).
+  Autor     : John Fredy Marciales Morales
+  Fecha     : 2026-11-18
+  ===========================================================================
+-->
+<ion-header>
+  <ion-toolbar>
+    <ion-title>App Shoper</ion-title>
+
+    <div slot="end" class="tabs-header-status ion-padding-end">
+      <span
+        class="tabs-role-pill"
+        [class.tabs-role-pill--seller]="activeRole() === 'seller'"
+        [attr.aria-label]="'Sesión activa en modo ' + activeRoleLabel()">
+        <ion-icon
+          [name]="activeRole() === 'customer' ? 'person-outline' : 'briefcase-outline'"
+          aria-hidden="true">
+        </ion-icon>
+        {{ activeRoleLabel() }}
+      </span>
+      @if (displayName(); as name) {
+        <ion-note class="tabs-user-note">Hola, {{ name }}</ion-note>
+      }
+    </div>
+  </ion-toolbar>
+</ion-header>
+
 <ion-tabs>
-  <!-- Barra fija inferior con acceso directo a inicio, galería privada y cuenta JWT. -->
-  <ion-tab-bar slot="bottom">
-    <!-- Pestaña de resumen y catálogo remoto API REST. -->
-    <ion-tab-button tab="tab1" href="/tabs/tab1">
-      <ion-icon aria-hidden="true" name="home"></ion-icon>
-      <ion-label>Inicio</ion-label>
+  <ion-tab-bar slot="bottom" aria-label="Navegación principal de App Shoper">
+    <!-- Pestaña 1: Catálogo (Cliente) o Inventario (Tienda). -->
+    <ion-tab-button
+      tab="tab1"
+      href="/tabs/tab1"
+      [attr.aria-label]="activeRole() === 'customer' ? 'Catálogo de productos' : 'Inventario de la tienda'">
+      <ion-icon name="storefront-outline" aria-hidden="true"></ion-icon>
+      <ion-label>{{ activeRole() === 'customer' ? 'Catálogo' : 'Inventario' }}</ion-label>
     </ion-tab-button>
 
-    <!-- Pestaña principal de captura con cámara y almacenamiento local. -->
-    <ion-tab-button tab="tab2" href="/tabs/tab2">
-      <ion-icon aria-hidden="true" name="images"></ion-icon>
-      <ion-label>Galería</ion-label>
-    </ion-tab-button>
+    <!-- Pestaña 2 (Carrito): habilitada exclusivamente para el ingreso Cliente. -->
+    @if (activeRole() === 'customer') {
+      <ion-tab-button
+        tab="tab2"
+        href="/tabs/tab2"
+        [attr.aria-label]="'Carrito de compras, ' + cartUnits() + ' unidades'">
+        <ion-icon name="cart-outline" aria-hidden="true"></ion-icon>
+        <ion-label>Carrito</ion-label>
+        @if (cartUnits(); as units) {
+          <ion-badge
+            class="shoper-cart-badge-pop"
+            color="primary"
+            aria-hidden="true">{{ units }}</ion-badge>
+        }
+      </ion-tab-button>
+    }
 
-    <!-- Pestaña de perfil autenticado y cierre de sesión. -->
-    <ion-tab-button tab="tab3" href="/tabs/tab3">
-      <ion-icon aria-hidden="true" name="person"></ion-icon>
-      <ion-label>Cuenta</ion-label>
+    <!-- Pestaña 3: Mis compras (Cliente) o Pedidos y cuenta (Tienda). -->
+    <ion-tab-button
+      tab="tab3"
+      href="/tabs/tab3"
+      [attr.aria-label]="(activeRole() === 'customer' ? 'Mis compras, ' : 'Pedidos de la tienda, ') + activeOrdersCount() + ' pedidos activos'">
+      <ion-icon name="receipt-outline" aria-hidden="true"></ion-icon>
+      <ion-label>{{ activeRole() === 'customer' ? 'Mis compras' : 'Pedidos' }}</ion-label>
+      @if (activeOrdersCount(); as activeOrders) {
+        <ion-badge
+          class="shoper-cart-badge-pop"
+          color="secondary"
+          aria-hidden="true">{{ activeOrders }}</ion-badge>
+      }
     </ion-tab-button>
   </ion-tab-bar>
 </ion-tabs>
