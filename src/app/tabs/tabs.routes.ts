@@ -33,9 +33,14 @@ export const tabsRoutes: Routes = [
         loadChildren: () => import('../tab2/tab2.module').then(m => m.Tab2PageModule),
       },
       {
-        // Pestaña 3 — Mis Compras (Cliente) / Pedidos y Cuenta (Tienda).
+        // Pestaña 3 — Mis Compras (Cliente) / Pedidos (Tienda).
         path: 'tab3',
         loadChildren: () => import('../tab3/tab3.module').then(m => m.Tab3PageModule),
+      },
+      {
+        // Pestaña 4 — Usuario (perfil de sesión, token JWT y cierre de sesión).
+        path: 'tab4',
+        loadChildren: () => import('../tab4/tab4.module').then(m => m.Tab4PageModule),
       },
       {
         path: '',

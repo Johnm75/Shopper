@@ -24,7 +24,6 @@ import {
   IonItem,
   IonLabel,
   IonList,
-  IonNote,
   IonSpinner,
 } from '@ionic/angular';
 
@@ -44,7 +43,6 @@ import { Tab3PageRoutingModule } from './tab3-routing.module';
     IonList,
     IonItem,
     IonLabel,
-    IonNote,
     IonIcon,
     IonButton,
     IonSpinner,

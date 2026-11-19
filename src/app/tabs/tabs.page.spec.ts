@@ -70,26 +70,28 @@ describe('TabsPage', () => {
     vi.restoreAllMocks();
   });
 
-  it('debe mostrar 3 pestañas (Catálogo, Carrito, Mis compras) cuando ingresa como Cliente', () => {
+  it('debe mostrar 4 pestañas (Catálogo, Carrito, Mis compras, Usuario) cuando ingresa como Cliente', () => {
     expect(component).toBeTruthy();
     const host = fixture.nativeElement as HTMLElement;
     const tabButtons = host.querySelectorAll('ion-tab-button');
-    expect(tabButtons.length).toBe(3);
+    expect(tabButtons.length).toBe(4);
     expect(host.textContent).toContain('Catálogo');
     expect(host.textContent).toContain('Carrito');
     expect(host.textContent).toContain('Mis compras');
+    expect(host.textContent).toContain('Usuario');
     expect(host.querySelector('ion-segment')).toBeNull();
   });
 
-  it('debe ocultar Carrito y mostrar solo Inventario y Pedidos cuando ingresa como Tienda', () => {
+  it('debe ocultar Carrito y mostrar Inventario, Pedidos y Usuario cuando ingresa como Tienda', () => {
     activeRoleSignal.set('seller');
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
     const tabButtons = host.querySelectorAll('ion-tab-button');
-    expect(tabButtons.length).toBe(2);
+    expect(tabButtons.length).toBe(3);
     expect(host.textContent).toContain('Inventario');
     expect(host.textContent).toContain('Pedidos');
+    expect(host.textContent).toContain('Usuario');
     expect(host.textContent).not.toContain('Carrito');
     expect(host.textContent).toContain('Tienda');
   });

@@ -996,6 +996,19 @@ ion-segment.login-role-segment ion-segment-button {
 .shoper-session-list {
   margin: 0;
   overflow: hidden;
+
+  ion-label {
+    font-size: 0.96rem;
+    font-weight: 600;
+  }
+
+  ion-note {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ion-text-color);
+    max-width: 58%;
+    text-align: end;
+  }
 }
 
 /* Extractos técnicos (token enmascarado) en fuente monoespaciada. */

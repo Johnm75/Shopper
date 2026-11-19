@@ -35,11 +35,8 @@ import {
   arrowForwardCircleOutline,
   checkmarkCircleOutline,
   checkmarkOutline,
-  keyOutline,
-  logOutOutline,
   receiptOutline,
   refreshOutline,
-  serverOutline,
   timeOutline,
 } from 'ionicons/icons';
 
@@ -47,10 +44,6 @@ import { OrderService } from '../services/order.service';
 import { CatalogService } from '../services/catalog.service';
 import { CartService } from '../services/cart.service';
 import { JwtAuthenticationService } from '../services/auth-jwt.service';
-import {
-  ShopperDatabaseService,
-  type ShopperDatabaseStats,
-} from '../services/database.service';
 import type { OrderRecord, OrderStatus } from '../models/shoper.model';
 import { ORDER_STATUS_FLOW } from '../models/shoper.model';
 import { announcePageNavigation } from '../utils/a11y-announce.util';
@@ -66,7 +59,6 @@ export class Tab3Page implements ViewWillEnter, ViewDidEnter {
   private readonly catalogService = inject(CatalogService);
   private readonly cartService = inject(CartService);
   private readonly authenticationService = inject(JwtAuthenticationService);
-  private readonly databaseService = inject(ShopperDatabaseService);
   private readonly toastController = inject(ToastController);
 
   /** Rol activo que decide qué vista se renderiza (señal del servicio). */
@@ -74,12 +66,6 @@ export class Tab3Page implements ViewWillEnter, ViewDidEnter {
 
   /** Listado reactivo completo de pedidos consumido por la vista Cliente. */
   readonly orders = this.orderService.ordersSignal;
-
-  /** Registro de sesión activo; alimenta el panel JWT del Vendedor. */
-  readonly sessionSignal = this.authenticationService.sessionSignal;
-
-  /** Minutos restantes de vigencia del token (señal heredada del servicio). */
-  readonly remainingSessionMinutes = this.authenticationService.remainingSessionMinutes;
 
   /**
    * Flujo canónico de los 4 estados logísticos (REQ-008). Se expone a la
@@ -97,28 +83,6 @@ export class Tab3Page implements ViewWillEnter, ViewDidEnter {
     this.orders().filter(order => order.currentStatus === 'Entregado')
   );
 
-  /**
-   * Vista enmascarada del token JWT (SEC-002): se muestran SOLO los últimos
-   * 6 caracteres precedidos de puntos; el resto nunca llega al DOM para que
-   * una captura de pantalla no filtre la credencial completa.
-   */
-  readonly maskedTokenTail = computed(() => {
-    const rawToken = this.sessionSignal()?.accessToken ?? '';
-    return rawToken.length > 0 ? `••••••••${rawToken.slice(-6)}` : '';
-  });
-
-  /** Etiqueta legible del origen del token (API remota o fallback offline). */
-  readonly tokenSourceLabel = computed(() => {
-    const source = this.sessionSignal()?.source;
-    if (source === 'remote-api') {
-      return 'API remota (DummyJSON)';
-    }
-    if (source === 'offline-fallback') {
-      return 'Token local offline';
-    }
-    return 'Sin sesión activa';
-  });
-
   /** Bloquea la lista mientras se hidratan los pedidos desde storage. */
   readonly isLoadingOrders = signal<boolean>(false);
 
@@ -130,24 +94,6 @@ export class Tab3Page implements ViewWillEnter, ViewDidEnter {
 
   /** Semántica del mensaje ('success' | 'error') para el color del aviso. */
   readonly actionMessageType = signal<'success' | 'error'>('success');
-
-  /** Estadísticas en vivo de la base de datos local `shopper_db`. */
-  readonly databaseStats = signal<ShopperDatabaseStats | null>(null);
-
-  /**
-   * Botones del diálogo de confirmación previo al cierre de sesión:
-   * "Cancelar" descarta y "Cerrar sesión" limpia el token del dispositivo.
-   */
-  readonly signOutConfirmationButtons: AlertButton[] = [
-    { text: 'Cancelar', role: 'cancel' },
-    {
-      text: 'Cerrar sesión',
-      role: 'destructive',
-      handler: () => {
-        this.confirmSignOut();
-      },
-    },
-  ];
 
   /**
    * Botones del diálogo de confirmación del restablecimiento demo: acción
@@ -173,11 +119,8 @@ export class Tab3Page implements ViewWillEnter, ViewDidEnter {
       arrowForwardCircleOutline,
       checkmarkCircleOutline,
       checkmarkOutline,
-      keyOutline,
-      logOutOutline,
       receiptOutline,
       refreshOutline,
-      serverOutline,
       timeOutline,
     });
   }
@@ -207,17 +150,9 @@ export class Tab3Page implements ViewWillEnter, ViewDidEnter {
     this.isLoadingOrders.set(true);
     try {
       await this.orderService.loadOrders();
-      await this.refreshDatabaseStats();
     } finally {
       // Libera el spinner incluso si la lectura del almacenamiento falla.
       this.isLoadingOrders.set(false);
-    }
-  }
-
-  private async refreshDatabaseStats(): Promise<void> {
-    if (typeof this.databaseService?.getDatabaseStats === 'function') {
-      const stats = await this.databaseService.getDatabaseStats();
-      this.databaseStats.set(stats);
     }
   }
 
@@ -329,7 +264,6 @@ export class Tab3Page implements ViewWillEnter, ViewDidEnter {
       await this.orderService.resetOrdersToSeed();
       await this.catalogService.resetCatalogToDefault();
       await this.cartService.clearCart();
-      await this.refreshDatabaseStats();
 
       this.announceAction(
         'Datos de demostración restablecidos: órdenes semilla, catálogo base y carrito vacío.',
@@ -342,14 +276,6 @@ export class Tab3Page implements ViewWillEnter, ViewDidEnter {
       // Libera el bloqueo tanto en éxito como en error.
       this.isResettingDemoData.set(false);
     }
-  }
-
-  /**
-   * Cierra la sesión JWT: limpia `shoper.session.v1` y regresa a `/login`.
-   * Se invoca desde el diálogo de confirmación (nunca directamente).
-   */
-  confirmSignOut(): void {
-    void this.authenticationService.signOutSession();
   }
 
   /**

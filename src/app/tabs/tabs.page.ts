@@ -18,6 +18,7 @@ import { addIcons } from 'ionicons';
 import {
   briefcaseOutline,
   cartOutline,
+  personCircleOutline,
   personOutline,
   receiptOutline,
   storefrontOutline,
@@ -67,6 +68,7 @@ export class TabsPage implements ViewWillEnter {
     addIcons({
       briefcaseOutline,
       cartOutline,
+      personCircleOutline,
       personOutline,
       receiptOutline,
       storefrontOutline,
