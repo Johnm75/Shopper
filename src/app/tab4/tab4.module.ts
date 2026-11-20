@@ -1,12 +1,5 @@
 /**
- * Módulo de la pestaña «Usuario» (`Tab4Page`).
- *
- * Declara la vista dedicada a la identidad del usuario autenticado (Cliente o
- * Tienda), inspección del token JWT, diagnóstico de almacenamiento local y
- * cierre de sesión seguro.
- *
- * @author John Fredy Marciales Morales
- * @date 2026-11-18
+ * Módulo perezoso de la pestaña Usuario (`Tab4Page`).
  */
 
 import { NgModule } from '@angular/core';
@@ -25,6 +18,9 @@ import {
 import { Tab4PageRoutingModule } from './tab4-routing.module';
 import { Tab4Page } from './tab4.page';
 
+/**
+ * Declara `Tab4Page` y registra los componentes Ionic de perfil, token y cierre de sesión.
+ */
 @NgModule({
   imports: [
     CommonModule,

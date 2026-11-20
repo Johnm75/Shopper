@@ -336,11 +336,11 @@ ion-segment.login-role-segment ion-segment-button {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Acolchado estándar de página dentro de ion-content: ritmo horizontal de
-   16 px y aire inferior de 24 px + inset seguro, de modo que el último
-   elemento nunca quede pegado al borde ni oculto por la barra de gestos. */
+/* Acolchado estándar de página dentro de ion-content: suma el inset superior
+   seguro (al haberse retirado el encabezado global) y el inferior de gestos. */
 .shoper-page-padding {
-  padding: var(--shoper-space-md) var(--shoper-space-md)
+  padding: calc(var(--shoper-space-md) + env(safe-area-inset-top, 0px))
+    var(--shoper-space-md)
     calc(var(--shoper-space-lg) + env(safe-area-inset-bottom, 0px));
 }
 
@@ -569,6 +569,52 @@ ion-segment.login-role-segment ion-segment-button {
 
   ion-button {
     flex: 1;
+  }
+}
+
+/* Variante compacta 2×2 para la vista Cliente: permite visualizar 4 tarjetas
+   simultáneamente en pantalla con desplazamiento vertical continuo. */
+.shoper-product-card--compact {
+  width: 100%;
+  height: 100%;
+
+  .shoper-product-card__media {
+    aspect-ratio: 4 / 3;
+    max-height: 118px;
+  }
+
+  .shoper-product-card__body {
+    flex: 1 1 auto;
+    gap: 6px;
+    padding: 10px 10px 12px;
+  }
+
+  .shoper-product-card__title {
+    font-size: 0.9rem;
+    line-height: 1.25;
+    min-height: 2.25rem;
+  }
+
+  .shoper-product-card__meta {
+    gap: 4px;
+    font-size: 0.76rem;
+  }
+
+  .shoper-price {
+    font-size: 1.02rem;
+  }
+
+  .shoper-product-card__actions {
+    padding-top: 2px;
+
+    ion-button {
+      --padding-top: 6px;
+      --padding-bottom: 6px;
+      --padding-start: 8px;
+      --padding-end: 8px;
+      font-size: 0.82rem;
+      min-height: 44px;
+    }
   }
 }
 

@@ -132,13 +132,29 @@ export class JwtAuthenticationService {
   }
 
   /**
-   * Hidrata la sesión desde Preferences de forma idempotente.
+   * Hidrata la sesión desde `shopper_db` de forma idempotente.
    */
   async restorePersistedSession(): Promise<void> {
     if (!this.hydrationPromise) {
       this.hydrationPromise = this.hydrateSessionFromStorage();
     }
     await this.hydrationPromise;
+  }
+
+  /**
+   * Inicializa el arranque en frío obligando a iniciar en `/login`.
+   *
+   * Garantiza la apertura de `shopper_db` y limpia únicamente la sesión JWT
+   * activa, preservando intactos usuarios, productos, carrito y pedidos.
+   */
+  async initializeStartupAtLogin(): Promise<void> {
+    try {
+      await this.database.ensureReady();
+      await this.tokenStorage.clearSession();
+    } finally {
+      this.sessionSignal.set(null);
+      this.hydrationPromise = Promise.resolve();
+    }
   }
 
   /**

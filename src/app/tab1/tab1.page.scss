@@ -100,13 +100,26 @@
   }
 }
 
-// Cuadrícula: aire inferior entre filas de tarjetas (las columnas de Ionic
-// ya aportan 5 px laterales por `--ion-grid-column-padding`).
+// Cuadrícula de productos; en modo Cliente ajusta padding para 2×2 (4 tarjetas en pantalla).
 .catalog-grid {
   padding-inline: 0;
 
   ion-col {
     margin-bottom: var(--shoper-space-md);
+  }
+
+  &--customer {
+    --ion-grid-padding: 0;
+    --ion-grid-column-padding: 5px;
+
+    ion-row {
+      align-items: stretch;
+    }
+
+    ion-col {
+      display: flex;
+      margin-bottom: 10px;
+    }
   }
 }
 

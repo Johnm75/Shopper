@@ -1,8 +1,5 @@
 /**
- * Pruebas unitarias de `Tab4Page` (Pantalla dedicada de Usuario, Token y Sesión).
- *
- * @author John Fredy Marciales Morales
- * @date 2026-11-18
+ * Pruebas unitarias de `Tab4Page`.
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';

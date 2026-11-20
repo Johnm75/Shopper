@@ -1,38 +1,9 @@
 <!--
-  ===========================================================================
-  APP SHOPER — Contenedor de pestañas (`TabsPage`)
-  ===========================================================================
-  Propósito : Cabecera con indicador de rol de solo lectura (Cliente | Tienda)
-              y barra inferior filtrada al rol con el que se inició sesión:
-              - Cliente: Catálogo + Carrito + Mis compras.
-              - Tienda (Vendedor): Inventario + Pedidos (sin Carrito ni cambio
-                simultáneo de vistas).
-  Autor     : John Fredy Marciales Morales
-  Fecha     : 2026-11-18
-  ===========================================================================
+  Contenedor principal de pestañas de App Shoper (sin encabezado global para
+  maximizar el área útil bajo la barra de estado nativa):
+  - Cliente: Catálogo, Carrito, Mis compras y Usuario (4 pestañas).
+  - Tienda : Inventario, Pedidos y Usuario (3 pestañas).
 -->
-<ion-header>
-  <ion-toolbar>
-    <ion-title>App Shoper</ion-title>
-
-    <div slot="end" class="tabs-header-status ion-padding-end">
-      <span
-        class="tabs-role-pill"
-        [class.tabs-role-pill--seller]="activeRole() === 'seller'"
-        [attr.aria-label]="'Sesión activa en modo ' + activeRoleLabel()">
-        <ion-icon
-          [name]="activeRole() === 'customer' ? 'person-outline' : 'briefcase-outline'"
-          aria-hidden="true">
-        </ion-icon>
-        {{ activeRoleLabel() }}
-      </span>
-      @if (displayName(); as name) {
-        <ion-note class="tabs-user-note">Hola, {{ name }}</ion-note>
-      }
-    </div>
-  </ion-toolbar>
-</ion-header>
-
 <ion-tabs>
   <ion-tab-bar slot="bottom" aria-label="Navegación principal de App Shoper">
     <!-- Pestaña 1: Catálogo (Cliente) o Inventario (Tienda). -->
@@ -44,7 +15,7 @@
       <ion-label>{{ activeRole() === 'customer' ? 'Catálogo' : 'Inventario' }}</ion-label>
     </ion-tab-button>
 
-    <!-- Pestaña 2 (Carrito): habilitada exclusivamente para el ingreso Cliente. -->
+    <!-- Pestaña 2 (Carrito): habilitada exclusivamente para el rol Cliente. -->
     @if (activeRole() === 'customer') {
       <ion-tab-button
         tab="tab2"

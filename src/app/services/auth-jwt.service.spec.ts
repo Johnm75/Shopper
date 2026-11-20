@@ -231,4 +231,35 @@ describe('JwtAuthenticationService', () => {
     expect(await authenticationService.hasActiveSession()).toBe(false);
     expect(authenticationService.sessionSignal()).toBeNull();
   });
+
+  // Debe limpiar la sesión en arranque en frío sin borrar el resto de `shopper_db`.
+  it('debe limpiar únicamente la sesión activa en initializeStartupAtLogin()', async () => {
+    await Preferences.set({
+      key: environment.storageKeys.session,
+      value: JSON.stringify({
+        accessToken: 'active.jwt.token',
+        refreshToken: 'ref',
+        username: 'emilys',
+        firstName: 'Emily',
+        lastName: 'Johnson',
+        role: 'customer',
+        source: 'remote-api',
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        schemaVersion: 1,
+      }),
+    });
+    await Preferences.set({
+      key: environment.storageKeys.catalog,
+      value: JSON.stringify({ schemaVersion: 1, products: [{ id: 1, title: 'Demo' }] }),
+    });
+
+    await authenticationService.initializeStartupAtLogin();
+
+    expect(authenticationService.isAuthenticated()).toBe(false);
+    expect(authenticationService.sessionSignal()).toBeNull();
+    const storedSession = await Preferences.get({ key: environment.storageKeys.session });
+    const storedCatalog = await Preferences.get({ key: environment.storageKeys.catalog });
+    expect(storedSession.value).toBeNull();
+    expect(storedCatalog.value).toContain('Demo');
+  });
 });
