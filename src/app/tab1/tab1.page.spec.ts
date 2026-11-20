@@ -103,16 +103,18 @@ describe('Tab1Page', () => {
     expect(liveRegion).toBeTruthy();
   });
 
-  // Debe conmutar reactivamente entre la vista de cliente y vendedor según el rol.
+  // Debe conmutar reactivamente entre cuadrícula 2×2 de Cliente y CRUD de Tienda.
   it('debe conmutar reactivamente entre las vistas de customer y seller', () => {
-    // Con rol cliente no deben mostrarse controles exclusivos de vendedor.
+    const host = fixture.nativeElement as HTMLElement;
     activeRoleSignal.set('customer');
     fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Nuevo producto');
+    expect(host.textContent).not.toContain('Nuevo producto');
+    expect(host.querySelector('.catalog-grid--customer')).toBeTruthy();
+    expect(host.querySelector('.shoper-product-card--compact')).toBeTruthy();
 
-    // Al cambiar a vendedor debe aparecer la acción de inventario.
     activeRoleSignal.set('seller');
     fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Nuevo producto');
+    expect(host.textContent).toContain('Nuevo producto');
+    expect(host.querySelector('.catalog-grid--customer')).toBeNull();
   });
 });

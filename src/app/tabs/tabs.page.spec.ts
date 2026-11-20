@@ -1,12 +1,8 @@
 /**
  * Pruebas unitarias de `TabsPage`.
  *
- * Valida que el contenedor muestre únicamente las pestañas e indicadores
- * correspondientes al rol con el que se inició sesión (Cliente vs. Tienda),
- * sin exponer ambas vistas ni permitir cambio simultáneo dentro de `/tabs`.
- *
- * @author John Fredy Marciales Morales
- * @date 2026-11-18
+ * Verifica la separación estricta de pestañas por rol (4 para Cliente, 3 para Tienda),
+ * la ausencia del encabezado global y del conmutador de rol simultáneo.
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -70,16 +66,17 @@ describe('TabsPage', () => {
     vi.restoreAllMocks();
   });
 
-  it('debe mostrar 4 pestañas (Catálogo, Carrito, Mis compras, Usuario) cuando ingresa como Cliente', () => {
+  it('debe mostrar 4 pestañas sin encabezado global cuando ingresa como Cliente', () => {
     expect(component).toBeTruthy();
     const host = fixture.nativeElement as HTMLElement;
     const tabButtons = host.querySelectorAll('ion-tab-button');
     expect(tabButtons.length).toBe(4);
+    expect(host.querySelector('ion-header')).toBeNull();
+    expect(host.querySelector('ion-segment')).toBeNull();
     expect(host.textContent).toContain('Catálogo');
     expect(host.textContent).toContain('Carrito');
     expect(host.textContent).toContain('Mis compras');
     expect(host.textContent).toContain('Usuario');
-    expect(host.querySelector('ion-segment')).toBeNull();
   });
 
   it('debe ocultar Carrito y mostrar Inventario, Pedidos y Usuario cuando ingresa como Tienda', () => {
@@ -93,7 +90,6 @@ describe('TabsPage', () => {
     expect(host.textContent).toContain('Pedidos');
     expect(host.textContent).toContain('Usuario');
     expect(host.textContent).not.toContain('Carrito');
-    expect(host.textContent).toContain('Tienda');
   });
 
   it('debe exponer aria-label en la barra de pestañas', () => {

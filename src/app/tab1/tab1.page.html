@@ -202,30 +202,23 @@
       }
     }
 
-    <!-- ================================================================
-         CUADRÍCULA DE PRODUCTOS (compartida por ambos roles)
-         `ion-grid` de 12 columnas: 1 tarjeta en móvil, 2 en tablet (md),
-         3 en escritorio (lg) aprovechando los breakpoints de Ionic.
-         ================================================================ -->
+    <!-- Cuadrícula de productos: 2×2 compacta (4 tarjetas en pantalla) para Cliente;
+         tarjetas de ancho completo con controles CRUD para Tienda. -->
     @if (!isLoadingCatalog() && products().length > 0) {
-      <ion-grid class="catalog-grid">
+      <ion-grid
+        class="catalog-grid"
+        [class.catalog-grid--customer]="activeRole() === 'customer'">
         <ion-row>
           @for (product of products(); track product.id; let productIndex = $index) {
-            <!-- Columna de la cuadrícula con animación de entrada escalonada:
-                 `shoper-fade-in-up` aplica fade-in + slide-up suave (global.scss §14.2)
-                 y la variable `--shoper-stagger-delay` desplaza cada tarjeta 40 ms
-                 según su índice para crear una aparición progresiva y legible. -->
             <ion-col
-              size="12"
-              sizeMd="6"
-              sizeLg="4"
+              [attr.size]="activeRole() === 'customer' ? '6' : '12'"
+              [attr.sizeMd]="activeRole() === 'customer' ? '6' : '6'"
+              [attr.sizeLg]="activeRole() === 'customer' ? '3' : '4'"
               class="shoper-fade-in-up"
               [style.--shoper-stagger-delay.ms]="productIndex * 40">
-              <!-- Tarjeta de producto con la estructura BEM de global.scss; la
-                   animación se hereda de la columna contenedora escalonada. -->
-              <article class="shoper-product-card">
-                <!-- Zona de imagen 1:1; `loading="lazy"` difiere la descarga
-                     hasta que la tarjeta entra en el viewport (ahorra datos). -->
+              <article
+                class="shoper-product-card"
+                [class.shoper-product-card--compact]="activeRole() === 'customer'">
                 <div class="shoper-product-card__media">
                   <img
                     [src]="product.thumbnail"
@@ -234,14 +227,13 @@
                     decoding="async" />
                 </div>
 
-                <!-- Cuerpo textual: título, metadatos, precio y acciones. -->
                 <div class="shoper-product-card__body">
                   <h2 class="shoper-product-card__title">{{ product.title }}</h2>
 
-                  <!-- Categoría + stock disponible en una sola fila limpia. -->
                   <p class="shoper-product-card__meta">
-                    <span>{{ product.category }}</span>
-                    <!-- Refuerzo semántico del stock con chip de color. -->
+                    @if (activeRole() !== 'customer') {
+                      <span>{{ product.category }}</span>
+                    }
                     @if (product.stock > 0) {
                       <span class="badge-paid">Stock: {{ product.stock }}</span>
                     } @else {
@@ -249,15 +241,12 @@
                     }
                   </p>
 
-                  <!-- Precio unitario destacado con el formato monetario. -->
                   <span class="shoper-price">
                     {{ product.price | currency: 'USD' : 'symbol' : '1.2-2' }}
                   </span>
 
-                  <!-- Acciones condicionadas por rol (WCAG: aria-label descriptivo). -->
                   <div class="shoper-product-card__actions">
                     @if (activeRole() === 'customer') {
-                      <!-- Cliente: agrega una unidad validando stock en el servicio. -->
                       <ion-button
                         size="small"
                         fill="solid"
@@ -266,10 +255,9 @@
                         (click)="addToCart(product)"
                         [attr.aria-label]="'Agregar al carrito: ' + product.title">
                         <ion-icon name="cart-outline" slot="start" aria-hidden="true"></ion-icon>
-                        Agregar al carrito
+                        Agregar
                       </ion-button>
                     } @else {
-                      <!-- Vendedor: precarga el formulario con los datos actuales. -->
                       <ion-button
                         size="small"
                         fill="outline"
@@ -279,7 +267,6 @@
                         <ion-icon name="create-outline" slot="start" aria-hidden="true"></ion-icon>
                         Editar
                       </ion-button>
-                      <!-- Vendedor: elimina el producto del inventario local. -->
                       <ion-button
                         size="small"
                         fill="clear"

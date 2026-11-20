@@ -1,17 +1,5 @@
 /**
- * ===========================================================================
- * APP SHOPER — Pestaña 4: Usuario, Token JWT y Cierre de Sesión (`Tab4Page`)
- * ===========================================================================
- * Propósito : Pantalla dedicada exclusivamente a la cuenta autenticada (tanto
- *             para el rol Cliente como para el rol Tienda):
- *             - Datos de identidad del usuario y resumen contextual de su rol.
- *             - Inspección del token JWT (enmascarado por defecto, con opción
- *               para mostrar/ocultar o copiar), origen y vigencia restante.
- *             - Estado de la base de datos local `shopper_db`.
- *             - Cierre de sesión con diálogo de confirmación `ion-alert`.
- * Autor     : John Fredy Marciales Morales
- * Fecha     : 2026-11-18
- * ===========================================================================
+ * Controlador de la pestaña 4: Perfil de usuario, inspección del token JWT y cierre de sesión.
  */
 
 import { Component, computed, inject, signal } from '@angular/core';
@@ -44,6 +32,9 @@ import {
 import { OrderService } from '../services/order.service';
 import { announcePageNavigation } from '../utils/a11y-announce.util';
 
+/**
+ * Presenta la identidad de la cuenta activa (Cliente o Tienda), estado de `shopper_db` y salida de sesión.
+ */
 @Component({
   selector: 'app-tab4',
   templateUrl: 'tab4.page.html',
@@ -57,25 +48,25 @@ export class Tab4Page implements ViewWillEnter, ViewDidEnter {
   private readonly orderService = inject(OrderService);
   private readonly databaseService = inject(ShopperDatabaseService);
 
-  /** Sesión activa del usuario autenticado (`customer` o `seller`). */
+  /** Sesión JWT activa (`customer` o `seller`). */
   readonly sessionSignal = this.authenticationService.sessionSignal;
 
   /** Rol activo fijo de la sesión actual. */
   readonly activeRole = this.authenticationService.activeRole;
 
-  /** Vista enmascarada del token (primeros 10 y últimos 4 caracteres). */
+  /** Vista enmascarada del token JWT activo. */
   readonly maskedTokenPreview = this.authenticationService.maskedTokenPreview;
 
-  /** Minutos restantes hasta la expiración del token JWT. */
+  /** Minutos restantes hasta la expiración del token. */
   readonly remainingSessionMinutes = this.authenticationService.remainingSessionMinutes;
 
-  /** Controla si el usuario solicitó ver el token JWT completo en pantalla. */
+  /** Controla si se muestra el token JWT completo en pantalla. */
   readonly isTokenVisible = signal<boolean>(false);
 
-  /** Mensaje de estado para la región accesible (`aria-live`). */
+  /** Mensaje de estado para la región `aria-live`. */
   readonly statusMessage = signal<string>('');
 
-  /** Estadísticas en vivo de la base de datos local `shopper_db`. */
+  /** Estadísticas en vivo de las tablas en `shopper_db`. */
   readonly databaseStats = signal<ShopperDatabaseStats | null>(null);
 
   /** Nombre completo del usuario autenticado. */
@@ -93,14 +84,14 @@ export class Tab4Page implements ViewWillEnter, ViewDidEnter {
     this.activeRole() === 'customer' ? 'Cliente' : 'Tienda'
   );
 
-  /** Descripción de capacidades vinculadas al rol del usuario. */
+  /** Descripción de capacidades según el rol autenticado. */
   readonly roleDescription = computed(() =>
     this.activeRole() === 'customer'
       ? 'Cuenta compradora: acceso al catálogo, carrito de compras y seguimiento de tus pedidos.'
       : 'Cuenta vendedora: acceso a gestión de inventario, avance de pedidos y control de la tienda.'
   );
 
-  /** Etiqueta legible del origen del token JWT. */
+  /** Etiqueta legible del origen del token activo. */
   readonly tokenSourceLabel = computed(() => {
     const source = this.sessionSignal()?.source;
     if (source === 'remote-api') {
@@ -112,16 +103,16 @@ export class Tab4Page implements ViewWillEnter, ViewDidEnter {
     return 'Sin sesión activa';
   });
 
-  /** Unidades actuales en carrito (para resumen de rol Cliente). */
+  /** Unidades actuales en carrito para el resumen de Cliente. */
   readonly cartUnits = this.cartService.totalUnits;
 
-  /** Total de productos en catálogo/inventario. */
+  /** Total de productos en catálogo o inventario. */
   readonly catalogCount = computed(() => this.catalogService.productsSignal().length);
 
-  /** Total de pedidos registrados. */
+  /** Total de pedidos registrados en la cuenta. */
   readonly totalOrdersCount = computed(() => this.orderService.ordersSignal().length);
 
-  /** Cantidad de pedidos activos (no entregados). */
+  /** Cantidad de pedidos aún no entregados. */
   readonly activeOrdersCount = computed(
     () =>
       this.orderService.ordersSignal().filter(order => order.currentStatus !== 'Entregado')
@@ -140,6 +131,9 @@ export class Tab4Page implements ViewWillEnter, ViewDidEnter {
     },
   ];
 
+  /**
+   * Registra los iconos utilizados en la vista de cuenta y diagnóstico.
+   */
   constructor() {
     addIcons({
       briefcaseOutline,
@@ -159,25 +153,31 @@ export class Tab4Page implements ViewWillEnter, ViewDidEnter {
     });
   }
 
+  /**
+   * Oculta el token completo, limpia mensajes y refresca estadísticas de `shopper_db`.
+   */
   ionViewWillEnter(): void {
     this.isTokenVisible.set(false);
     this.statusMessage.set('');
     void this.refreshDatabaseStats();
   }
 
+  /**
+   * Anuncia la vista al lector de pantalla y ubica el foco en el encabezado principal.
+   */
   ionViewDidEnter(): void {
     announcePageNavigation('Usuario — App Shoper', 'tab4-title');
   }
 
   /**
-   * Alterna la visibilidad completa del token JWT para inspección manual.
+   * Alterna la visibilidad completa del token JWT en pantalla.
    */
   toggleTokenVisibility(): void {
     this.isTokenVisible.update(visible => !visible);
   }
 
   /**
-   * Copia el token JWT activo al portapapeles cuando el navegador/WebView lo soporta.
+   * Copia el token JWT activo al portapapeles o lo muestra en pantalla si el entorno lo restringe.
    */
   async copyAccessToken(): Promise<void> {
     const token = this.sessionSignal()?.accessToken;
@@ -192,7 +192,7 @@ export class Tab4Page implements ViewWillEnter, ViewDidEnter {
         return;
       }
     } catch {
-      // Si falla el acceso al portapapeles, informa al usuario que puede verlo manualmente.
+      // Si el portapapeles falla, expone el token en pantalla para copia manual.
     }
 
     this.isTokenVisible.set(true);
@@ -200,7 +200,10 @@ export class Tab4Page implements ViewWillEnter, ViewDidEnter {
   }
 
   /**
-   * Formatea una fecha ISO-8601 de expiración en formato legible local.
+   * Formatea la fecha de expiración ISO-8601 a formato local legible.
+   *
+   * @param isoTimestamp Marca temporal ISO-8601 de expiración.
+   * @returns Fecha formateada o texto descriptivo si falta o es inválida.
    */
   formatExpirationDate(isoTimestamp?: string): string {
     if (!isoTimestamp) {
@@ -220,12 +223,15 @@ export class Tab4Page implements ViewWillEnter, ViewDidEnter {
   }
 
   /**
-   * Ejecuta el cierre de sesión limpiando storage, señal y navegando a `/login`.
+   * Ejecuta el cierre de sesión limpiando storage, estado reactivo y navegando a `/login`.
    */
   confirmSignOut(): void {
     void this.authenticationService.signOutSession();
   }
 
+  /**
+   * Consulta las métricas actuales de tablas en `ShopperDatabaseService`.
+   */
   private async refreshDatabaseStats(): Promise<void> {
     if (typeof this.databaseService?.getDatabaseStats === 'function') {
       const stats = await this.databaseService.getDatabaseStats();

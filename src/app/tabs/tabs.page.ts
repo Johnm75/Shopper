@@ -1,34 +1,29 @@
 /**
- * ===========================================================================
- * APP SHOPER — Contenedor de pestañas bloqueado al rol de ingreso
- * ===========================================================================
- * Propósito : Alojar la navegación inferior correspondiente ÚNICAMENTE al rol
- *             con el que el usuario inició sesión:
- *             - Cliente (`customer`): Catálogo, Carrito (con badge) y Mis compras.
- *             - Tienda (`seller`): Inventario y Pedidos (sin Carrito ni
- *               conmutador simultáneo entre vistas).
- * Autor     : John Fredy Marciales Morales
- * Fecha     : 2026-11-18
- * ===========================================================================
+ * Controlador del contenedor de pestañas bloqueado al rol autenticado.
+ *
+ * Adapta la barra inferior al rol con el que se inició sesión:
+ * - Cliente (`customer`): Catálogo, Carrito (con badge), Mis compras y Usuario.
+ * - Tienda (`seller`): Inventario, Pedidos (con badge) y Usuario.
  */
 
 import { Component, computed, inject } from '@angular/core';
 import type { ViewWillEnter } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
-  briefcaseOutline,
   cartOutline,
   personCircleOutline,
-  personOutline,
   receiptOutline,
   storefrontOutline,
 } from 'ionicons/icons';
 
 import { JwtAuthenticationService } from '../services/auth-jwt.service';
 import { CartService } from '../services/cart.service';
-import { OrderService } from '../services/order.service';
 import { CatalogService } from '../services/catalog.service';
+import { OrderService } from '../services/order.service';
 
+/**
+ * Orquesta las insignias reactivas y la hidratación inicial al ingresar a `/tabs`.
+ */
 @Component({
   selector: 'app-tabs',
   templateUrl: 'tabs.page.html',
@@ -41,23 +36,13 @@ export class TabsPage implements ViewWillEnter {
   private readonly orderService = inject(OrderService);
   private readonly catalogService = inject(CatalogService);
 
-  /** Rol activo fijo para la sesión ingresada ('customer' | 'seller'). */
+  /** Rol activo bloqueado para la sesión actual (`customer` o `seller`). */
   readonly activeRole = this.authenticationService.activeRole;
 
-  /** Nombre visible del usuario autenticado para el saludo del encabezado. */
-  readonly displayName = computed(
-    () => this.authenticationService.sessionSignal()?.firstName ?? ''
-  );
-
-  /** Etiqueta de solo lectura del modo activo según la cuenta ingresada. */
-  readonly activeRoleLabel = computed(() =>
-    this.activeRole() === 'customer' ? 'Cliente' : 'Tienda'
-  );
-
-  /** Insignia de tab2: unidades totales del carrito (`totalUnits`). */
+  /** Cantidad total de unidades en el carrito para la insignia de `tab2`. */
   readonly cartUnits = this.cartService.totalUnits;
 
-  /** Insignia de tab3: número de pedidos activos (no entregados). */
+  /** Cantidad de pedidos activos (no entregados) para la insignia de `tab3`. */
   readonly activeOrdersCount = computed(
     () =>
       this.orderService.ordersSignal().filter(order => order.currentStatus !== 'Entregado')
@@ -66,18 +51,15 @@ export class TabsPage implements ViewWillEnter {
 
   constructor() {
     addIcons({
-      briefcaseOutline,
       cartOutline,
       personCircleOutline,
-      personOutline,
       receiptOutline,
       storefrontOutline,
     });
   }
 
   /**
-   * Hidrata catálogo, pedidos y carrito (solo en modo Cliente) desde
-   * `shopper_db` en cada entrada al contenedor de pestañas.
+   * Hidrata catálogo, pedidos y carrito (solo en rol Cliente) desde `shopper_db`.
    */
   ionViewWillEnter(): void {
     void this.catalogService.loadCatalog();

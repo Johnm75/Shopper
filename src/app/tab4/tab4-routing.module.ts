@@ -1,8 +1,5 @@
 /**
- * Enrutamiento hijo de la pestaña `/tabs/tab4` (Usuario).
- *
- * @author John Fredy Marciales Morales
- * @date 2026-11-18
+ * Enrutamiento hijo de la pestaña `/tabs/tab4`.
  */
 
 import { NgModule } from '@angular/core';
@@ -17,6 +14,9 @@ const tab4Routes: Routes = [
   },
 ];
 
+/**
+ * Configura las rutas hijas de `Tab4PageModule`.
+ */
 @NgModule({
   imports: [RouterModule.forChild(tab4Routes)],
   exports: [RouterModule],
